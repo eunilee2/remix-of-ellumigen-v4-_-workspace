@@ -112,8 +112,11 @@ export function WorkspaceView({ onStartExample, onOpenWorkspace }: WorkspaceView
       <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-6 md:py-8">
         <div className="mb-4 xl:max-w-[calc(100%-19rem)]">
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-            Overview
+            Your workspaces
           </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            A workspace is your project hub — it organizes the threads, datasets, and methods for one research question.
+          </p>
         </div>
 
         <div className="flex items-start gap-4">
