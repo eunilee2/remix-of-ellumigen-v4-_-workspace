@@ -118,14 +118,14 @@ export function AppSidebar({
             </div>
           </div>
 
-          {/* New Chat */}
+          {/* New Thread */}
           <div className="px-3 py-1">
             <button
               onClick={onNewChat}
               className="sidebar-item w-full font-medium text-foreground"
             >
               <Plus className="w-4 h-4" />
-              New Chat
+              New Thread
             </button>
           </div>
 
