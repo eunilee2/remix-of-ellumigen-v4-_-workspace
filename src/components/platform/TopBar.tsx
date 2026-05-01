@@ -23,6 +23,8 @@ interface TopBarProps {
 export function TopBar({
   chatTitle,
   chatSubtitle,
+  workspaceName,
+  onOpenWorkspace,
   isLoading,
   lastMessageTime,
   branchContext,
