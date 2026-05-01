@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Plus, Info, Filter, X, Search } from "lucide-react";
 import type { BranchNodeCategory } from "@/types/chat";
@@ -169,6 +169,7 @@ export function ConversationMap({
   const rootNodes = nodes.filter((n) => !n.parentId);
   const nodeMap = Object.fromEntries(nodes.map((n) => [n.id, n]));
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const [mergeConnectors, setMergeConnectors] = useState<MergeConnector[]>([]);
   const [branchGaps, setBranchGaps] = useState<Record<string, number>>({});
   const [overlaySize, setOverlaySize] = useState({ width: 0, height: 0 });
@@ -315,7 +316,7 @@ export function ConversationMap({
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto px-6 py-4">
+      <div ref={scrollRef} className="flex-1 overflow-auto px-6 py-4 relative">
         <div
           ref={contentRef}
           className="relative flex flex-col items-center gap-0 min-w-fit"
@@ -352,6 +353,158 @@ export function ConversationMap({
             />
           ))}
         </div>
+        <Minimap scrollRef={scrollRef} contentRef={contentRef} activeNodeId={activeNodeId} />
+      </div>
+    </div>
+  );
+}
+
+function Minimap({
+  scrollRef,
+  contentRef,
+  activeNodeId,
+}: {
+  scrollRef: React.RefObject<HTMLDivElement>;
+  contentRef: React.RefObject<HTMLDivElement>;
+  activeNodeId?: string;
+}) {
+  const MINIMAP_W = 180;
+  const MINIMAP_H = 130;
+  const [, force] = useState(0);
+  const dragging = useRef(false);
+
+  // Re-render on scroll/resize so the viewport rectangle tracks the user.
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    const content = contentRef.current;
+    if (!scroller || !content) return;
+    const rerender = () => force((n) => n + 1);
+    scroller.addEventListener("scroll", rerender, { passive: true });
+    const ro = new ResizeObserver(rerender);
+    ro.observe(scroller);
+    ro.observe(content);
+    window.addEventListener("resize", rerender);
+    return () => {
+      scroller.removeEventListener("scroll", rerender);
+      ro.disconnect();
+      window.removeEventListener("resize", rerender);
+    };
+  }, [scrollRef, contentRef]);
+
+  const scroller = scrollRef.current;
+  const content = contentRef.current;
+  if (!scroller || !content) {
+    return (
+      <div
+        className="sticky bottom-3 left-3 z-20 rounded-lg border border-border bg-background/90 backdrop-blur-sm shadow-md pointer-events-none"
+        style={{ width: MINIMAP_W, height: MINIMAP_H, marginTop: -MINIMAP_H - 12 }}
+      />
+    );
+  }
+
+  const contentW = Math.max(content.scrollWidth, scroller.clientWidth);
+  const contentH = Math.max(content.scrollHeight, scroller.clientHeight);
+  const scaleX = MINIMAP_W / contentW;
+  const scaleY = MINIMAP_H / contentH;
+  const scale = Math.min(scaleX, scaleY);
+  const innerW = contentW * scale;
+  const innerH = contentH * scale;
+
+  const viewW = scroller.clientWidth * scale;
+  const viewH = scroller.clientHeight * scale;
+  const viewX = scroller.scrollLeft * scale;
+  const viewY = scroller.scrollTop * scale;
+
+  // Collect every node card to draw on the minimap.
+  const cardEls = content.querySelectorAll<HTMLElement>("[data-map-node]");
+  const contentRect = content.getBoundingClientRect();
+  const cards = Array.from(cardEls).map((el) => {
+    const r = el.getBoundingClientRect();
+    return {
+      id: el.dataset.mapNode || "",
+      x: (r.left - contentRect.left) * scale,
+      y: (r.top - contentRect.top) * scale,
+      w: r.width * scale,
+      h: r.height * scale,
+      active: el.dataset.mapNode === activeNodeId,
+    };
+  });
+
+  const handlePointer = (clientX: number, clientY: number, target: HTMLDivElement) => {
+    const rect = target.getBoundingClientRect();
+    const localX = clientX - rect.left - innerW / 2 - (MINIMAP_W - innerW) / 2;
+    const localY = clientY - rect.top - innerH / 2 - (MINIMAP_H - innerH) / 2;
+    // Re-derive: convert pointer position inside the inner (innerW × innerH) area into content coords.
+    const padX = (MINIMAP_W - innerW) / 2;
+    const padY = (MINIMAP_H - innerH) / 2;
+    const px = clientX - rect.left - padX;
+    const py = clientY - rect.top - padY;
+    const targetScrollLeft = px / scale - scroller.clientWidth / 2;
+    const targetScrollTop = py / scale - scroller.clientHeight / 2;
+    scroller.scrollTo({
+      left: Math.max(0, Math.min(contentW - scroller.clientWidth, targetScrollLeft)),
+      top: Math.max(0, Math.min(contentH - scroller.clientHeight, targetScrollTop)),
+      behavior: "auto",
+    });
+    // silence unused warning
+    void localX;
+    void localY;
+  };
+
+  return (
+    <div
+      className="sticky bottom-3 left-3 z-20 rounded-lg border border-border bg-background/95 backdrop-blur-sm shadow-md select-none"
+      style={{ width: MINIMAP_W, height: MINIMAP_H, marginTop: -MINIMAP_H - 12 }}
+      onPointerDown={(e) => {
+        dragging.current = true;
+        (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+        handlePointer(e.clientX, e.clientY, e.currentTarget);
+      }}
+      onPointerMove={(e) => {
+        if (!dragging.current) return;
+        handlePointer(e.clientX, e.clientY, e.currentTarget);
+      }}
+      onPointerUp={(e) => {
+        dragging.current = false;
+        (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+      }}
+      onPointerLeave={() => {
+        dragging.current = false;
+      }}
+    >
+      <div className="absolute top-1 left-2 text-[9px] font-medium uppercase tracking-wider text-muted-foreground pointer-events-none">
+        Minimap
+      </div>
+      <div
+        className="absolute inset-0 m-auto cursor-grab active:cursor-grabbing"
+        style={{ width: innerW, height: innerH }}
+      >
+        {/* Scaled node thumbnails */}
+        {cards.map((c) => (
+          <div
+            key={c.id}
+            className={cn(
+              "absolute rounded-[2px]",
+              c.active ? "bg-primary" : "bg-foreground/30"
+            )}
+            style={{
+              left: c.x,
+              top: c.y,
+              width: Math.max(c.w, 3),
+              height: Math.max(c.h, 2),
+            }}
+          />
+        ))}
+        {/* Viewport rectangle */}
+        <div
+          className="absolute border-2 border-primary bg-primary/10 rounded-[2px] pointer-events-none"
+          style={{
+            left: viewX,
+            top: viewY,
+            width: Math.max(viewW, 6),
+            height: Math.max(viewH, 6),
+          }}
+        />
       </div>
     </div>
   );
