@@ -199,9 +199,41 @@ export function ChatView({
     );
   }
 
+  const { datasets, method } = deriveChatContext(chat?.messages);
+  const runningStatus = chat?.messages.some(
+    (m) => m.metadata?.type === "executing" &&
+      m.metadata.executionSteps?.some((s) => s.status === "running")
+  );
+
+  // Step numbering: only "analysis" responses count as steps
+  const stepIndexById = new Map<string, number>();
+  let stepCounter = 0;
+  chat?.messages.forEach((m) => {
+    const t = m.metadata?.type;
+    if (
+      m.role === "assistant" &&
+      (t === "plan" || t === "executing" || t === "data-table" || t === "visualizations")
+    ) {
+      stepCounter += 1;
+      stepIndexById.set(m.id, stepCounter);
+    }
+  });
+
   const chatContent = (
-    <div className="flex flex-col h-full bg-gradient-to-b from-sky-200/60 via-sky-100/30 to-background">
-      {isEmptyMainChat || isMergedBranchEmpty || isActiveBranchEmpty ? (
+    <div className="flex flex-col h-full bg-background">
+      {/* Persistent context strip — only when chat has messages */}
+      {!hasNoMessages && (
+        <ContextStrip
+          workspace={chat?.title ?? "Workspace"}
+          datasets={datasets}
+          method={method}
+          status={runningStatus ? "running" : "idle"}
+        />
+      )}
+
+      {isEmptyMainChat ? (
+        <StartingCanvas onSend={handleSend} workspace={chat?.title ?? "New analysis"} />
+      ) : isMergedBranchEmpty || isActiveBranchEmpty ? (
         <div className="flex-1 flex flex-col items-center justify-center px-6">
           <div className="w-full max-w-xl mx-auto flex flex-col items-center gap-6">
             <div className="text-center space-y-2">
@@ -212,17 +244,12 @@ export function ChatView({
                     The findings from this exploration have been added to your main analysis. To keep iterating on this variation, ask another question below.
                   </p>
                 </>
-              ) : isActiveBranchEmpty ? (
+              ) : (
                 <>
                   <h1 className="text-3xl font-semibold text-foreground">Continue this exploration</h1>
                   <p className="text-muted-foreground text-sm">
                     Try a variation of your analysis here without affecting the main thread.
                   </p>
-                </>
-              ) : (
-                <>
-                  <h1 className="text-3xl font-semibold text-foreground">Start exploring</h1>
-                  <p className="text-muted-foreground text-sm">Ask me questions about your data and generate research hypotheses</p>
                 </>
               )}
             </div>
@@ -233,18 +260,18 @@ export function ChatView({
                 onHelpClick={() => onToggleContextHelp?.(true)}
               />
             </div>
-            {!branchContext?.isOnBranch && <SuggestionChips onSelect={handleSend} />}
           </div>
         </div>
       ) : (
         <>
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
-            <div className="max-w-3xl mx-auto space-y-6 pb-12">
+            <div className="max-w-3xl mx-auto space-y-5 pb-12">
               <AnimatePresence initial={false}>
-                {chat.messages.map((msg, i) => (
-                  <MessageBubble
+                {chat.messages.map((msg) => (
+                  <DocumentEntry
                     key={msg.id}
                     message={msg}
+                    stepNumber={stepIndexById.get(msg.id)}
                     onBranch={() => onBranch?.(msg.id)}
                     onBookmark={() => onBookmark?.(msg.id)}
                     onToggleBookmarkCollection={onToggleBookmarkCollection ? (colId: string) => onToggleBookmarkCollection(msg.id, colId) : undefined}
@@ -261,14 +288,13 @@ export function ChatView({
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="flex items-center gap-3 py-4"
+                  className="flex items-center gap-3 py-4 pl-1"
                 >
-                  <img src={ellumigenLogo} alt="Processing" className="w-8 h-8 rounded-full object-cover" />
                   <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "300ms" }} />
-                    <span className="text-sm text-muted-foreground ml-2">Processing analysis...</span>
+                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: "300ms" }} />
+                    <span className="text-xs text-muted-foreground ml-2 uppercase tracking-wider font-medium">Running analysis…</span>
                   </div>
                 </motion.div>
               )}
