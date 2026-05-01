@@ -296,8 +296,7 @@ function generatePseudocode(steps: WorkflowStep[], dsLookup: Record<string, Data
 // ────────────────────────────────────────────────────────────
 
 export function MethodsView() {
-  const chats = useChatStore((s) => s.chats);
-  const activeChatId = useChatStore((s) => s.activeChatId);
+  const { chats, activeChatId } = useChatStore();
 
   const [steps, setSteps] = useState<WorkflowStep[]>([
     { ...makeStep("filter-outliers"), datasetIds: ["tcga-brca"] },
