@@ -316,7 +316,8 @@ export function ConversationMap({
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-auto px-6 py-4 relative">
+      <div className="flex-1 relative min-h-0">
+      <div ref={scrollRef} className="absolute inset-0 overflow-auto px-6 py-4">
         <div
           ref={contentRef}
           className="relative flex flex-col items-center gap-0 min-w-fit"
@@ -353,7 +354,8 @@ export function ConversationMap({
             />
           ))}
         </div>
-        <Minimap scrollRef={scrollRef} contentRef={contentRef} activeNodeId={activeNodeId} />
+      </div>
+      <Minimap scrollRef={scrollRef} contentRef={contentRef} activeNodeId={activeNodeId} />
       </div>
     </div>
   );
