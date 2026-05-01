@@ -464,6 +464,14 @@ export default function Index() {
           <TopBar
             chatTitle={store.activeChat?.title}
             chatSubtitle="Dataset name"
+            workspaceName={getWorkspaceForChat(store.chats, store.activeChatId)?.name}
+            onOpenWorkspace={() => {
+              const ws = getWorkspaceForChat(store.chats, store.activeChatId);
+              if (ws) {
+                setActiveWorkspaceId(ws.id);
+                setActiveView("workspace-overview");
+              }
+            }}
             isLoading={isLoading}
             lastMessageTime={(() => {
               const msgs = store.activeChat?.messages;
