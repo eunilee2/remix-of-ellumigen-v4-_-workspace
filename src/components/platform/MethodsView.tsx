@@ -301,6 +301,140 @@ function generatePseudocode(steps: WorkflowStep[], dsLookup: Record<string, Data
 }
 
 // ────────────────────────────────────────────────────────────
+// Code View — multi-language generators
+// Each generator returns an array of { stepUid?, text } so we can
+// correlate code lines back to workflow steps.
+// ────────────────────────────────────────────────────────────
+
+export type CodeLanguage = "python" | "r" | "pseudocode" | "json";
+
+export interface CodeLine {
+  text: string;
+  stepUid?: string;
+}
+
+function fmtVal(v: number | string | boolean, lang: CodeLanguage): string {
+  if (typeof v === "string") {
+    if (lang === "r") return `"${v}"`;
+    return `"${v}"`;
+  }
+  if (typeof v === "boolean") {
+    if (lang === "python" || lang === "pseudocode") return v ? "True" : "False";
+    if (lang === "r") return v ? "TRUE" : "FALSE";
+    return String(v);
+  }
+  return String(v);
+}
+
+function generateCodeLines(
+  steps: WorkflowStep[],
+  dsLookup: Record<string, DatasetCard>,
+  lang: CodeLanguage,
+): CodeLine[] {
+  if (steps.length === 0) {
+    return [{ text: "# Add steps to see generated code" }];
+  }
+
+  if (lang === "json") {
+    const obj = {
+      workflow: steps.map((s, i) => {
+        const def = STEP_LIBRARY.find((d) => d.id === s.defId)!;
+        return {
+          step: i + 1,
+          id: def.id,
+          label: def.label,
+          datasets: s.datasetIds.map((id) => dsLookup[id]?.name ?? id),
+          params: s.paramValues,
+        };
+      }),
+    };
+    return JSON.stringify(obj, null, 2)
+      .split("\n")
+      .map((text) => ({ text }));
+  }
+
+  const lines: CodeLine[] = [];
+
+  if (lang === "python") {
+    lines.push({ text: "# Auto-generated from your visual workflow" });
+    lines.push({ text: "# Read-only — edits should be made in the Method Builder" });
+    lines.push({ text: "import ellumigen as eg" });
+    lines.push({ text: "" });
+  } else if (lang === "r") {
+    lines.push({ text: "# Auto-generated from your visual workflow" });
+    lines.push({ text: "# Read-only — edits should be made in the Method Builder" });
+    lines.push({ text: "library(ellumigen)" });
+    lines.push({ text: "" });
+  } else {
+    lines.push({ text: "# Pseudocode representation of your workflow" });
+    lines.push({ text: "" });
+  }
+
+  steps.forEach((s, i) => {
+    const def = STEP_LIBRARY.find((d) => d.id === s.defId)!;
+    const fn = s.defId.replace(/-/g, "_");
+    const datasets = s.datasetIds.map((id) => dsLookup[id]?.name ?? id);
+    const inputVar =
+      i === 0
+        ? datasets.length
+          ? lang === "r"
+            ? `eg_load(c(${datasets.map((d) => `"${d}"`).join(", ")}))`
+            : `eg.load([${datasets.map((d) => `"${d}"`).join(", ")}])`
+          : "input_data"
+        : `step_${i}`;
+
+    // Step header comment
+    lines.push({ text: `# Step ${i + 1}: ${def.label} — ${def.plain}`, stepUid: s.uid });
+
+    if (lang === "python") {
+      const params = Object.entries(s.paramValues)
+        .map(([k, v]) => `${k}=${fmtVal(v, lang)}`)
+        .join(", ");
+      lines.push({
+        text: `step_${i + 1} = eg.${fn}(${inputVar}${params ? ", " + params : ""})`,
+        stepUid: s.uid,
+      });
+    } else if (lang === "r") {
+      const params = Object.entries(s.paramValues)
+        .map(([k, v]) => `${k} = ${fmtVal(v, lang)}`)
+        .join(", ");
+      lines.push({
+        text: `step_${i + 1} <- eg_${fn}(${inputVar}${params ? ", " + params : ""})`,
+        stepUid: s.uid,
+      });
+    } else {
+      // pseudocode
+      lines.push({ text: `${def.label.toUpperCase()}:`, stepUid: s.uid });
+      if (datasets.length) {
+        lines.push({ text: `    input  ← ${datasets.join(", ")}`, stepUid: s.uid });
+      } else if (i > 0) {
+        lines.push({ text: `    input  ← output of step ${i}`, stepUid: s.uid });
+      }
+      Object.entries(s.paramValues).forEach(([k, v]) => {
+        lines.push({ text: `    ${k} = ${fmtVal(v, lang)}`, stepUid: s.uid });
+      });
+      lines.push({ text: `    output → ${def.output}`, stepUid: s.uid });
+    }
+    lines.push({ text: "", stepUid: s.uid });
+  });
+
+  return lines;
+}
+
+function languageMeta(lang: CodeLanguage) {
+  switch (lang) {
+    case "python":
+      return { label: "Python", filename: "workflow.py", mime: "text/x-python" };
+    case "r":
+      return { label: "R", filename: "workflow.R", mime: "text/x-r" };
+    case "pseudocode":
+      return { label: "Pseudocode", filename: "workflow.txt", mime: "text/plain" };
+    case "json":
+      return { label: "JSON", filename: "workflow.json", mime: "application/json" };
+  }
+}
+
+// ────────────────────────────────────────────────────────────
 // Main view
 // ────────────────────────────────────────────────────────────
 
