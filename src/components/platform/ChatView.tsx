@@ -184,16 +184,16 @@ export function ChatView({
             <div className="text-center space-y-2">
               {isMergedBranchEmpty ? (
                 <>
-                  <h1 className="text-3xl font-semibold text-foreground">Branch merged to main</h1>
+                  <h1 className="text-3xl font-semibold text-foreground">Insights saved to the main thread</h1>
                   <p className="text-muted-foreground text-sm">
-                    This branch has been merged into the main chat. If you still want to work in this branch, ask another question to continue here.
+                    The findings from this exploration have been added to your main analysis. To keep iterating on this variation, ask another question below.
                   </p>
                 </>
               ) : isActiveBranchEmpty ? (
                 <>
-                  <h1 className="text-3xl font-semibold text-foreground">Continue this branch</h1>
+                  <h1 className="text-3xl font-semibold text-foreground">Continue this exploration</h1>
                   <p className="text-muted-foreground text-sm">
-                    Ask another question to keep exploring this branch.
+                    Try a variation of your analysis here without affecting the main thread.
                   </p>
                 </>
               ) : (
@@ -425,7 +425,7 @@ function MessageBubble({
             </button>
           </TooltipTrigger>
           <TooltipContent side="top">
-            <p>Branch</p>
+            <p>Explore another direction</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
