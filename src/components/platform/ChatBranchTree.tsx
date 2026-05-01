@@ -1,4 +1,4 @@
-import { ChevronDown, GitBranch } from "lucide-react";
+import { ChevronDown, Workflow } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
@@ -44,8 +44,8 @@ export function ChatBranchTree({ nodes, onSelectNode, onSelectBranch }: ChatBran
   return (
     <Collapsible defaultOpen className="px-3">
       <CollapsibleTrigger className="section-label flex items-center gap-1 w-full">
-        <GitBranch className="w-3 h-3" />
-        Current Chat
+        <Workflow className="w-3 h-3" />
+        Analysis paths
         <ChevronDown className="w-3 h-3 ml-auto transition-transform duration-200 [[data-state=closed]>&]:rotate-[-90deg]" />
       </CollapsibleTrigger>
       <CollapsibleContent className="mt-1">
@@ -210,7 +210,7 @@ function BranchTreeLayout({
           </span>
           {item.isMain && (
             <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground font-medium ml-auto">
-              main
+              Main path
             </span>
           )}
         </button>
@@ -254,7 +254,7 @@ function BranchTreeLayout({
                         : "bg-violet-500/15 text-violet-700 dark:text-violet-300"
                     )}
                   >
-                    {branch.label}
+                    {branch.merged ? "combined" : branch.label.replace(/^Branch\b/i, "Path")}
                   </span>
                 )}
               </button>
