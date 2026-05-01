@@ -509,7 +509,21 @@ export default function Index() {
             isOnBranch={!!store.activeBranchId}
           />
         ) : activeView === "workspace" ? (
-          <WorkspaceView onStartExample={handleStartExample} />
+          <WorkspaceView
+            onStartExample={handleStartExample}
+            onOpenWorkspace={(wsId) => {
+              setActiveWorkspaceId(wsId);
+              setActiveView("workspace-overview");
+            }}
+          />
+        ) : activeView === "workspace-overview" && activeWorkspaceId ? (
+          <WorkspaceOverviewView
+            chats={store.chats}
+            workspaceId={activeWorkspaceId}
+            onSelectThread={(id) => handleSelectChat(id)}
+            onNewThread={handleNewChat}
+            onBack={() => setActiveView("workspace")}
+          />
         ) : activeView === "history" ? (
           <HistoryView chats={store.chats} onSelectChat={handleSelectChat} />
         ) : activeView === "usecases" ? (
@@ -519,27 +533,38 @@ export default function Index() {
         ) : activeView === "methods" ? (
           <MethodsView />
         ) : (
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <ChatView
-              chat={viewChat}
-              onSendMessage={handleSendMessage}
-              onBranch={handleBranch}
-              onBookmark={handleBookmark}
-              onToggleBookmarkCollection={(messageId, colId) => {
-                if (store.activeChatId) store.toggleBookmarkCollection(store.activeChatId, messageId, colId);
+          <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+              <ChatView
+                chat={viewChat}
+                onSendMessage={handleSendMessage}
+                onBranch={handleBranch}
+                onBookmark={handleBookmark}
+                onToggleBookmarkCollection={(messageId, colId) => {
+                  if (store.activeChatId) store.toggleBookmarkCollection(store.activeChatId, messageId, colId);
+                }}
+                onCreateBookmarkCollection={store.createBookmarkCollection}
+                getCollectionIdsForMessage={store.getCollectionIdsForMessage}
+                bookmarkCollections={store.bookmarkCollections}
+                onApprovePlan={handleApprovePlan}
+                onRejectPlan={handleRejectPlan}
+                isLoading={isLoading}
+                showContextHelp={showContextHelp}
+                onToggleContextHelp={setShowContextHelp}
+                miniPanel={miniPanel}
+                onToggleMiniPanel={toggleMiniPanel}
+                isNewChat={!store.activeBranchId}
+                branchContext={branchContext}
+              />
+            </div>
+            <RelatedThreadsPanel
+              chats={store.chats}
+              activeChatId={store.activeChatId}
+              onSelectThread={handleSelectChat}
+              onOpenWorkspace={(wsId) => {
+                setActiveWorkspaceId(wsId);
+                setActiveView("workspace-overview");
               }}
-              onCreateBookmarkCollection={store.createBookmarkCollection}
-              getCollectionIdsForMessage={store.getCollectionIdsForMessage}
-              bookmarkCollections={store.bookmarkCollections}
-              onApprovePlan={handleApprovePlan}
-              onRejectPlan={handleRejectPlan}
-              isLoading={isLoading}
-              showContextHelp={showContextHelp}
-              onToggleContextHelp={setShowContextHelp}
-              miniPanel={miniPanel}
-              onToggleMiniPanel={toggleMiniPanel}
-              isNewChat={!store.activeBranchId}
-              branchContext={branchContext}
             />
           </div>
         )}
