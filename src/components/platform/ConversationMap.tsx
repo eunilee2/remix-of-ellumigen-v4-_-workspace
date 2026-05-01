@@ -1,8 +1,10 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, Info } from "lucide-react";
+import { Plus, Info, Filter, X, Search } from "lucide-react";
 import type { BranchNodeCategory } from "@/types/chat";
 import { cn } from "@/lib/utils";
+import { CONTRIBUTORS, TEAMS, getContributorForId } from "@/lib/contributors";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 const BRANCH_COLUMN_OFFSET = 320;
 const BRANCH_CURVE_RADIUS = 40;
@@ -171,6 +173,8 @@ export function ConversationMap({
   const [branchGaps, setBranchGaps] = useState<Record<string, number>>({});
   const [overlaySize, setOverlaySize] = useState({ width: 0, height: 0 });
   const [advancedMode, setAdvancedMode] = useState(false);
+  const [teamFilter, setTeamFilter] = useState<string | null>(null);
+  const [teamSearch, setTeamSearch] = useState("");
 
   useLayoutEffect(() => {
     const container = contentRef.current;
@@ -214,15 +218,101 @@ export function ConversationMap({
             <span className="font-medium text-foreground">combine insights</span> back when you're ready.
           </p>
         </div>
-        <label className="flex items-center gap-2 text-xs text-muted-foreground shrink-0 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            className="accent-primary"
-            checked={advancedMode}
-            onChange={(e) => setAdvancedMode(e.target.checked)}
-          />
-          Version-control view
-        </label>
+        <div className="flex items-center gap-3 shrink-0">
+          {/* Author / team filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className={cn(
+                  "flex items-center gap-1.5 text-xs px-2 py-1 rounded-md border transition-colors",
+                  teamFilter
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
+                )}
+                title="Filter by team"
+              >
+                <Filter className="w-3.5 h-3.5" />
+                {teamFilter ? `Team: ${teamFilter}` : "Filter by team"}
+                {teamFilter && (
+                  <X
+                    className="w-3 h-3 ml-0.5 hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTeamFilter(null);
+                      setTeamSearch("");
+                    }}
+                  />
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-0" align="end">
+              <div className="p-2 border-b border-border">
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-secondary/60">
+                  <Search className="w-3.5 h-3.5 text-muted-foreground" />
+                  <input
+                    autoFocus
+                    value={teamSearch}
+                    onChange={(e) => setTeamSearch(e.target.value)}
+                    placeholder="Search teams..."
+                    className="bg-transparent outline-none text-xs flex-1 placeholder:text-muted-foreground"
+                  />
+                </div>
+              </div>
+              <div className="max-h-56 overflow-y-auto py-1">
+                {TEAMS.filter((t) =>
+                  t.toLowerCase().includes(teamSearch.toLowerCase())
+                ).map((team) => {
+                  const members = CONTRIBUTORS.filter((c) => c.team === team);
+                  const isActive = teamFilter === team;
+                  return (
+                    <button
+                      key={team}
+                      onClick={() => setTeamFilter(isActive ? null : team)}
+                      className={cn(
+                        "w-full flex items-center justify-between gap-2 px-3 py-2 text-xs hover:bg-secondary text-left",
+                        isActive && "bg-secondary"
+                      )}
+                    >
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-medium text-foreground truncate">{team}</span>
+                        <span className="text-[10px] text-muted-foreground truncate">
+                          {members.map((m) => m.name.split(" ")[0]).join(", ")}
+                        </span>
+                      </div>
+                      <div className="flex -space-x-1 shrink-0">
+                        {members.slice(0, 3).map((m) => (
+                          <span
+                            key={m.initials}
+                            className="w-5 h-5 rounded-full border border-background flex items-center justify-center text-[9px] font-semibold text-white"
+                            style={{ backgroundColor: m.color }}
+                          >
+                            {m.initials}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+                {TEAMS.filter((t) =>
+                  t.toLowerCase().includes(teamSearch.toLowerCase())
+                ).length === 0 && (
+                  <p className="px-3 py-3 text-xs text-muted-foreground text-center">
+                    No teams match "{teamSearch}"
+                  </p>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+            <input
+              type="checkbox"
+              className="accent-primary"
+              checked={advancedMode}
+              onChange={(e) => setAdvancedMode(e.target.checked)}
+            />
+            Version-control view
+          </label>
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto px-6 py-4">
@@ -258,6 +348,7 @@ export function ConversationMap({
               onAddBranch={onAddBranch}
               branchGapMap={branchGaps}
               advancedMode={advancedMode}
+              teamFilter={teamFilter}
             />
           ))}
         </div>
