@@ -10,6 +10,7 @@ import { ArtifactsView } from "@/components/platform/ArtifactsView";
 import { MethodsView } from "@/components/platform/MethodsView";
 import { ConversationMap, type MapNode } from "@/components/platform/ConversationMap";
 import { PanelHeader } from "@/components/platform/ModeTabs";
+import { CombineInsightsDialog } from "@/components/platform/CombineInsightsDialog";
 import { useChatStore } from "@/stores/chatStore";
 import { buildBranchTreeFromMessages, branchTreeToMapNodes } from "@/lib/branchTreeBuilder";
 import type { InterfaceMode, TaskStep, ThoughtEntry, DataTableConfig } from "@/types/chat";
@@ -375,9 +376,18 @@ export default function Index() {
   }, []);
 
   const handleBringToMain = useCallback(() => {
+    // Open the friendly "Combine insights" confirmation dialog
+    // instead of merging immediately. The actual merge happens on confirm.
+    if (store.activeChatId && store.activeBranchId) {
+      setShowCombineDialog(true);
+    }
+  }, [store.activeChatId, store.activeBranchId]);
+
+  const handleConfirmCombine = useCallback(() => {
     if (store.activeChatId && store.activeBranchId) {
       store.mergeBranch(store.activeChatId, store.activeBranchId);
     }
+    setShowCombineDialog(false);
     setShowConversationMap(false);
   }, [store]);
 
