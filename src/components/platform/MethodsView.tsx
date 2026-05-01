@@ -26,6 +26,11 @@ import {
   PanelLeftClose,
   PanelRightOpen,
   PanelRightClose,
+  Download,
+  Check,
+  X,
+  PanelBottomOpen,
+  PanelBottomClose,
   type LucideIcon,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
