@@ -1,6 +1,7 @@
 import { ChevronDown, Workflow } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { getContributorForId, CURRENT_USER } from "@/lib/contributors";
 
 export interface BranchTreeNode {
   id: string;
@@ -76,7 +77,7 @@ function BranchTreeLayout({
 
   const branchesPerMain: { chain: BranchTreeNode[]; label?: string; merged?: boolean; mergeTargetMainIndex?: number }[][] = mainChain.map((item) => {
     const branchKids = item.branchChildren || (item.children || []).filter((c) => c.isBranch);
-    return branchKids.map((branch) => {
+    const allBranches = branchKids.map((branch) => {
       const chain: BranchTreeNode[] = [];
       let c: BranchTreeNode | undefined = branch;
       while (c) {
@@ -86,6 +87,27 @@ function BranchTreeLayout({
       }
       return { chain, label: branch.branchLabel, merged: branch.merged, mergeTargetMainIndex: branch.mergeTargetMainIndex };
     });
+
+    // Avoid stacking multiple branch lanes on top of each other in the narrow sidebar.
+    // Prefer the branch authored by the current user; otherwise the most-recently-updated one.
+    if (allBranches.length <= 1) return allBranches;
+
+    const ownedByCurrentUser = allBranches.filter((b) => {
+      const firstNode = b.chain[0];
+      if (!firstNode) return false;
+      return getContributorForId(firstNode.id).initials === CURRENT_USER.initials;
+    });
+
+    const candidatePool = ownedByCurrentUser.length > 0 ? ownedByCurrentUser : allBranches;
+
+    const latestTimestamp = (b: { chain: BranchTreeNode[] }) =>
+      b.chain.reduce((latest, node) => {
+        const t = node.timestamp ? new Date(node.timestamp).getTime() : 0;
+        return Math.max(latest, t);
+      }, 0);
+
+    const winner = [...candidatePool].sort((a, b) => latestTimestamp(b) - latestTimestamp(a))[0];
+    return [winner];
   });
 
   const mainRowIndex: number[] = [];
