@@ -1,31 +1,120 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { Chat, ChatMessage, ChatBranch, BookmarkedMessage, BookmarkCollection, Folder, InterfaceMode, ThoughtEntry } from "@/types/chat";
+import { buildSeededMessages } from "@/lib/seedChatHistory";
 
-const DEMO_CHATS: Chat[] = [
-  { id: "1", title: "TCGA-BRCA outcomes", messages: [], branches: [], createdAt: new Date(Date.now() - 86400000), updatedAt: new Date(Date.now() - 86400000) },
-  { id: "2", title: "RNA-seq Analysis", messages: [], branches: [], createdAt: new Date(Date.now() - 172800000), updatedAt: new Date(Date.now() - 172800000) },
-  { id: "3", title: "Gene enrichment", messages: [], branches: [], createdAt: new Date(Date.now() - 259200000), updatedAt: new Date(Date.now() - 259200000) },
-  { id: "4", title: "TP53 Mutation Impact Analysis", messages: [], branches: [], createdAt: new Date(Date.now() - 345600000), updatedAt: new Date(Date.now() - 345600000) },
-  { id: "5", title: "BRCA1 Functional Annotation", messages: [], branches: [], createdAt: new Date(Date.now() - 432000000), updatedAt: new Date(Date.now() - 432000000) },
+const DEMO_CHAT_META: Array<{ id: string; title: string; daysAgo: number }> = [
+  { id: "1", title: "TCGA-BRCA outcomes", daysAgo: 1 },
+  { id: "2", title: "RNA-seq Analysis", daysAgo: 2 },
+  { id: "3", title: "Gene enrichment", daysAgo: 3 },
+  { id: "4", title: "TP53 Mutation Impact Analysis", daysAgo: 4 },
+  { id: "5", title: "BRCA1 Functional Annotation", daysAgo: 5 },
 ];
+
+const DEMO_CHATS: Chat[] = DEMO_CHAT_META.map(({ id, title, daysAgo }) => {
+  const seeded = buildSeededMessages(id);
+  const createdAt = new Date(Date.now() - daysAgo * 86_400_000);
+  const lastMsgTime = seeded.length > 0 ? seeded[seeded.length - 1].timestamp : createdAt;
+  return {
+    id,
+    title,
+    messages: seeded,
+    branches: [],
+    createdAt,
+    updatedAt: lastMsgTime,
+  };
+});
 
 const DEMO_FOLDERS: Folder[] = [
   { id: "f1", name: "Pan-Cancer RNA-seq Expression Atlas", chatIds: ["1", "2"], datasetCount: 12, updatedAt: new Date(Date.now() - 7200000) },
   { id: "f2", name: "CRISPR Screen Analysis — Drug Resistance", chatIds: ["3"], datasetCount: 4, updatedAt: new Date(Date.now() - 18000000) },
 ];
 
+// ── Persistence ───────────────────────────────────────────
+
+const STORAGE_KEY = "ellumigen.chatStore.v1";
+
+/**
+ * Revive Date fields after JSON.parse — they come back as strings otherwise.
+ */
+function reviveChats(raw: any[]): Chat[] {
+  return raw.map((c) => ({
+    ...c,
+    createdAt: new Date(c.createdAt),
+    updatedAt: new Date(c.updatedAt),
+    messages: (c.messages || []).map((m: any) => ({
+      ...m,
+      timestamp: new Date(m.timestamp),
+    })),
+    branches: (c.branches || []).map((b: any) => ({
+      ...b,
+      createdAt: new Date(b.createdAt),
+      messages: (b.messages || []).map((m: any) => ({
+        ...m,
+        timestamp: new Date(m.timestamp),
+      })),
+    })),
+  }));
+}
+
+function loadPersisted(): {
+  chats: Chat[];
+  bookmarkedMessages: BookmarkedMessage[];
+  bookmarkCollections?: BookmarkCollection[];
+} | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      chats: reviveChats(parsed.chats || []),
+      bookmarkedMessages: (parsed.bookmarkedMessages || []).map((b: any) => ({
+        ...b,
+        bookmarkedAt: new Date(b.bookmarkedAt),
+      })),
+      bookmarkCollections: parsed.bookmarkCollections
+        ? parsed.bookmarkCollections.map((c: any) => ({
+            ...c,
+            createdAt: new Date(c.createdAt),
+          }))
+        : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function useChatStore() {
-  const [chats, setChats] = useState<Chat[]>(DEMO_CHATS);
+  const persisted = useRef(loadPersisted()).current;
+  const [chats, setChats] = useState<Chat[]>(persisted?.chats?.length ? persisted.chats : DEMO_CHATS);
   const [folders, setFolders] = useState<Folder[]>(DEMO_FOLDERS);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
   const [mode, setMode] = useState<InterfaceMode>("conversation");
-  const [bookmarkedMessages, setBookmarkedMessages] = useState<BookmarkedMessage[]>([]);
-  const [bookmarkCollections, setBookmarkCollections] = useState<BookmarkCollection[]>([
-    { id: "col-1", name: "Methods & Protocols", color: "#0070C0", createdAt: new Date() },
-    { id: "col-2", name: "Key Findings", color: "#636FCE", createdAt: new Date() },
-    { id: "col-3", name: "Datasets", color: "#F69553", createdAt: new Date() },
-  ]);
+  const [bookmarkedMessages, setBookmarkedMessages] = useState<BookmarkedMessage[]>(
+    persisted?.bookmarkedMessages || []
+  );
+  const [bookmarkCollections, setBookmarkCollections] = useState<BookmarkCollection[]>(
+    persisted?.bookmarkCollections || [
+      { id: "col-1", name: "Methods & Protocols", color: "#0070C0", createdAt: new Date() },
+      { id: "col-2", name: "Key Findings", color: "#636FCE", createdAt: new Date() },
+      { id: "col-3", name: "Datasets", color: "#F69553", createdAt: new Date() },
+    ]
+  );
+
+  // Persist any changes to chats/bookmarks back to localStorage so they
+  // survive page reloads. Folders intentionally stay demo-only.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ chats, bookmarkedMessages, bookmarkCollections })
+      );
+    } catch {
+      // quota exceeded or storage disabled — fail silently
+    }
+  }, [chats, bookmarkedMessages, bookmarkCollections]);
 
   const activeChat = chats.find((c) => c.id === activeChatId) ?? null;
   const activeBranch = activeChat?.branches.find((b) => b.id === activeBranchId) ?? null;
