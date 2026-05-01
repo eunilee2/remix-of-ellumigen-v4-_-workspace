@@ -456,6 +456,8 @@ export function MethodsView() {
   const [dropOverIndex, setDropOverIndex] = useState<number | null>(null);
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
+  const [codeLang, setCodeLang] = useState<CodeLanguage>("python");
+  const [highlightStepUid, setHighlightStepUid] = useState<string | null>(null);
 
   const datasetLookup = useMemo(
     () => Object.fromEntries(SAMPLE_DATASETS.map((d) => [d.id, d])) as Record<string, DatasetCard>,
