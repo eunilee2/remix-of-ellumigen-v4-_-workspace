@@ -316,7 +316,8 @@ export function ConversationMap({
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-auto px-6 py-4 relative">
+      <div className="flex-1 relative min-h-0">
+      <div ref={scrollRef} className="absolute inset-0 overflow-auto px-6 py-4">
         <div
           ref={contentRef}
           className="relative flex flex-col items-center gap-0 min-w-fit"
@@ -353,7 +354,8 @@ export function ConversationMap({
             />
           ))}
         </div>
-        <Minimap scrollRef={scrollRef} contentRef={contentRef} activeNodeId={activeNodeId} />
+      </div>
+      <Minimap scrollRef={scrollRef} contentRef={contentRef} activeNodeId={activeNodeId} />
       </div>
     </div>
   );
@@ -371,6 +373,7 @@ function Minimap({
   const MINIMAP_W = 180;
   const MINIMAP_H = 130;
   const [, force] = useState(0);
+  const [expanded, setExpanded] = useState(false);
   const dragging = useRef(false);
 
   // Re-render on scroll/resize so the viewport rectangle tracks the user.
@@ -394,12 +397,7 @@ function Minimap({
   const scroller = scrollRef.current;
   const content = contentRef.current;
   if (!scroller || !content) {
-    return (
-      <div
-        className="sticky bottom-3 left-3 z-20 rounded-lg border border-border bg-background/90 backdrop-blur-sm shadow-md pointer-events-none"
-        style={{ width: MINIMAP_W, height: MINIMAP_H, marginTop: -MINIMAP_H - 12 }}
-      />
-    );
+    return null;
   }
 
   const contentW = Math.max(content.scrollWidth, scroller.clientWidth);
@@ -451,10 +449,28 @@ function Minimap({
     void localY;
   };
 
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onMouseEnter={() => setExpanded(true)}
+        onFocus={() => setExpanded(true)}
+        className="absolute bottom-3 left-3 z-30 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-background/90 backdrop-blur-sm shadow-sm text-[10px] font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
+        aria-label="Show minimap"
+      >
+        <span className="inline-block w-3 h-2 rounded-[2px] border border-current" />
+        Minimap
+      </button>
+    );
+  }
+
   return (
     <div
-      className="sticky bottom-3 left-3 z-20 rounded-lg border border-border bg-background/95 backdrop-blur-sm shadow-md select-none"
-      style={{ width: MINIMAP_W, height: MINIMAP_H, marginTop: -MINIMAP_H - 12 }}
+      className="absolute bottom-3 left-3 z-30 rounded-lg border border-border bg-background/95 backdrop-blur-sm shadow-md select-none"
+      style={{ width: MINIMAP_W, height: MINIMAP_H }}
+      onMouseLeave={() => {
+        if (!dragging.current) setExpanded(false);
+      }}
       onPointerDown={(e) => {
         dragging.current = true;
         (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
