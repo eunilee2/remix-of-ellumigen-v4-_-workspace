@@ -532,6 +532,14 @@ export default function Index() {
           </div>
         )}
       </div>
+
+      <CombineInsightsDialog
+        open={showCombineDialog}
+        branch={store.activeBranch}
+        parentTitle={store.activeChat?.title || "main thread"}
+        onConfirm={handleConfirmCombine}
+        onCancel={() => setShowCombineDialog(false)}
+      />
     </div>
   );
 }
