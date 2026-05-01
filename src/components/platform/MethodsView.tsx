@@ -26,6 +26,11 @@ import {
   PanelLeftClose,
   PanelRightOpen,
   PanelRightClose,
+  Download,
+  Check,
+  X,
+  PanelBottomOpen,
+  PanelBottomClose,
   type LucideIcon,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -296,6 +301,140 @@ function generatePseudocode(steps: WorkflowStep[], dsLookup: Record<string, Data
 }
 
 // ────────────────────────────────────────────────────────────
+// Code View — multi-language generators
+// Each generator returns an array of { stepUid?, text } so we can
+// correlate code lines back to workflow steps.
+// ────────────────────────────────────────────────────────────
+
+export type CodeLanguage = "python" | "r" | "pseudocode" | "json";
+
+export interface CodeLine {
+  text: string;
+  stepUid?: string;
+}
+
+function fmtVal(v: number | string | boolean, lang: CodeLanguage): string {
+  if (typeof v === "string") {
+    if (lang === "r") return `"${v}"`;
+    return `"${v}"`;
+  }
+  if (typeof v === "boolean") {
+    if (lang === "python" || lang === "pseudocode") return v ? "True" : "False";
+    if (lang === "r") return v ? "TRUE" : "FALSE";
+    return String(v);
+  }
+  return String(v);
+}
+
+function generateCodeLines(
+  steps: WorkflowStep[],
+  dsLookup: Record<string, DatasetCard>,
+  lang: CodeLanguage,
+): CodeLine[] {
+  if (steps.length === 0) {
+    return [{ text: "# Add steps to see generated code" }];
+  }
+
+  if (lang === "json") {
+    const obj = {
+      workflow: steps.map((s, i) => {
+        const def = STEP_LIBRARY.find((d) => d.id === s.defId)!;
+        return {
+          step: i + 1,
+          id: def.id,
+          label: def.label,
+          datasets: s.datasetIds.map((id) => dsLookup[id]?.name ?? id),
+          params: s.paramValues,
+        };
+      }),
+    };
+    return JSON.stringify(obj, null, 2)
+      .split("\n")
+      .map((text) => ({ text }));
+  }
+
+  const lines: CodeLine[] = [];
+
+  if (lang === "python") {
+    lines.push({ text: "# Auto-generated from your visual workflow" });
+    lines.push({ text: "# Read-only — edits should be made in the Method Builder" });
+    lines.push({ text: "import ellumigen as eg" });
+    lines.push({ text: "" });
+  } else if (lang === "r") {
+    lines.push({ text: "# Auto-generated from your visual workflow" });
+    lines.push({ text: "# Read-only — edits should be made in the Method Builder" });
+    lines.push({ text: "library(ellumigen)" });
+    lines.push({ text: "" });
+  } else {
+    lines.push({ text: "# Pseudocode representation of your workflow" });
+    lines.push({ text: "" });
+  }
+
+  steps.forEach((s, i) => {
+    const def = STEP_LIBRARY.find((d) => d.id === s.defId)!;
+    const fn = s.defId.replace(/-/g, "_");
+    const datasets = s.datasetIds.map((id) => dsLookup[id]?.name ?? id);
+    const inputVar =
+      i === 0
+        ? datasets.length
+          ? lang === "r"
+            ? `eg_load(c(${datasets.map((d) => `"${d}"`).join(", ")}))`
+            : `eg.load([${datasets.map((d) => `"${d}"`).join(", ")}])`
+          : "input_data"
+        : `step_${i}`;
+
+    // Step header comment
+    lines.push({ text: `# Step ${i + 1}: ${def.label} — ${def.plain}`, stepUid: s.uid });
+
+    if (lang === "python") {
+      const params = Object.entries(s.paramValues)
+        .map(([k, v]) => `${k}=${fmtVal(v, lang)}`)
+        .join(", ");
+      lines.push({
+        text: `step_${i + 1} = eg.${fn}(${inputVar}${params ? ", " + params : ""})`,
+        stepUid: s.uid,
+      });
+    } else if (lang === "r") {
+      const params = Object.entries(s.paramValues)
+        .map(([k, v]) => `${k} = ${fmtVal(v, lang)}`)
+        .join(", ");
+      lines.push({
+        text: `step_${i + 1} <- eg_${fn}(${inputVar}${params ? ", " + params : ""})`,
+        stepUid: s.uid,
+      });
+    } else {
+      // pseudocode
+      lines.push({ text: `${def.label.toUpperCase()}:`, stepUid: s.uid });
+      if (datasets.length) {
+        lines.push({ text: `    input  ← ${datasets.join(", ")}`, stepUid: s.uid });
+      } else if (i > 0) {
+        lines.push({ text: `    input  ← output of step ${i}`, stepUid: s.uid });
+      }
+      Object.entries(s.paramValues).forEach(([k, v]) => {
+        lines.push({ text: `    ${k} = ${fmtVal(v, lang)}`, stepUid: s.uid });
+      });
+      lines.push({ text: `    output → ${def.output}`, stepUid: s.uid });
+    }
+    lines.push({ text: "", stepUid: s.uid });
+  });
+
+  return lines;
+}
+
+function languageMeta(lang: CodeLanguage) {
+  switch (lang) {
+    case "python":
+      return { label: "Python", filename: "workflow.py", mime: "text/x-python" };
+    case "r":
+      return { label: "R", filename: "workflow.R", mime: "text/x-r" };
+    case "pseudocode":
+      return { label: "Pseudocode", filename: "workflow.txt", mime: "text/plain" };
+    case "json":
+      return { label: "JSON", filename: "workflow.json", mime: "application/json" };
+  }
+}
+
+// ────────────────────────────────────────────────────────────
 // Main view
 // ────────────────────────────────────────────────────────────
 
@@ -317,6 +456,8 @@ export function MethodsView() {
   const [dropOverIndex, setDropOverIndex] = useState<number | null>(null);
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
+  const [codeLang, setCodeLang] = useState<CodeLanguage>("python");
+  const [highlightStepUid, setHighlightStepUid] = useState<string | null>(null);
 
   const datasetLookup = useMemo(
     () => Object.fromEntries(SAMPLE_DATASETS.map((d) => [d.id, d])) as Record<string, DatasetCard>,
@@ -626,6 +767,8 @@ export function MethodsView() {
                         index={i}
                         datasetLookup={datasetLookup}
                         draggingDatasetId={draggingDatasetId}
+                        highlighted={highlightStepUid === step.uid}
+                        onHover={(h) => setHighlightStepUid(h ? step.uid : null)}
                         onParamChange={(k, v) => updateParam(step.uid, k, v)}
                         onRemove={() => removeStep(step.uid)}
                         onDuplicate={() => duplicateStep(step.uid)}
@@ -660,20 +803,17 @@ export function MethodsView() {
                 })}
               </div>
 
-              {/* Code view (advanced) */}
+              {/* Code view (read-only, optional reference layer) */}
               {advanced && (
-                <div className="mt-6 rounded-lg border border-border bg-zinc-950 text-zinc-100 overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
-                    <div className="flex items-center gap-2">
-                      <Code2 className="w-3.5 h-3.5 text-zinc-400" />
-                      <span className="text-xs font-mono text-zinc-300">workflow.py</span>
-                    </div>
-                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Read-only preview</span>
-                  </div>
-                  <pre className="p-4 text-xs font-mono leading-relaxed overflow-x-auto">
-                    {generatePseudocode(steps, datasetLookup)}
-                  </pre>
-                </div>
+                <CodeView
+                  steps={steps}
+                  datasetLookup={datasetLookup}
+                  language={codeLang}
+                  onLanguageChange={setCodeLang}
+                  highlightStepUid={highlightStepUid}
+                  onHoverStep={setHighlightStepUid}
+                  onClose={() => setAdvanced(false)}
+                />
               )}
             </div>
           </section>
@@ -769,6 +909,8 @@ interface StepBlockProps {
   index: number;
   datasetLookup: Record<string, DatasetCard>;
   draggingDatasetId: string | null;
+  highlighted?: boolean;
+  onHover?: (hovered: boolean) => void;
   onParamChange: (key: string, value: number | string | boolean) => void;
   onRemove: () => void;
   onDuplicate: () => void;
@@ -784,6 +926,8 @@ function StepBlock({
   index,
   datasetLookup,
   draggingDatasetId,
+  highlighted,
+  onHover,
   onParamChange,
   onRemove,
   onDuplicate,
@@ -810,6 +954,8 @@ function StepBlock({
         onDragStartStep();
       }}
       onDragEnd={onDragEndStep}
+      onMouseEnter={() => onHover?.(true)}
+      onMouseLeave={() => onHover?.(false)}
       onDragOver={(e) => {
         if (draggingDatasetId) {
           e.preventDefault();
@@ -825,7 +971,8 @@ function StepBlock({
       }}
       className={cn(
         "rounded-xl border bg-card shadow-sm overflow-hidden transition-all",
-        dropHover ? "border-primary ring-2 ring-primary/30" : "border-border"
+        dropHover ? "border-primary ring-2 ring-primary/30" : "border-border",
+        highlighted && "ring-2 ring-amber-500/50 border-amber-500/50"
       )}
     >
       {/* Header */}
@@ -1050,6 +1197,204 @@ function DropZone({
           Drop here
         </div>
       )}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// Code View — read-only structured representation of the workflow.
+// Acts as a reference layer: each line is correlated to a step so
+// users can verify the generated logic without editing it.
+// ────────────────────────────────────────────────────────────
+
+interface CodeViewProps {
+  steps: WorkflowStep[];
+  datasetLookup: Record<string, DatasetCard>;
+  language: CodeLanguage;
+  onLanguageChange: (l: CodeLanguage) => void;
+  highlightStepUid: string | null;
+  onHoverStep: (uid: string | null) => void;
+  onClose: () => void;
+}
+
+function CodeView({
+  steps,
+  datasetLookup,
+  language,
+  onLanguageChange,
+  highlightStepUid,
+  onHoverStep,
+  onClose,
+}: CodeViewProps) {
+  const [copied, setCopied] = useState(false);
+  const meta = languageMeta(language);
+  const lines = useMemo(
+    () => generateCodeLines(steps, datasetLookup, language),
+    [steps, datasetLookup, language],
+  );
+  const fullText = useMemo(() => lines.map((l) => l.text).join("\n"), [lines]);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(fullText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* noop */
+    }
+  };
+
+  const handleDownload = () => {
+    const blob = new Blob([fullText], { type: meta.mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = meta.filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="mt-6 rounded-xl border border-border bg-zinc-950 text-zinc-100 overflow-hidden shadow-lg">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-zinc-800 bg-zinc-900/70">
+        <div className="flex items-center gap-2 min-w-0">
+          <Code2 className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+          <span className="text-xs font-mono text-zinc-300 truncate">{meta.filename}</span>
+          <Badge
+            variant="outline"
+            className="ml-1 border-zinc-700 bg-zinc-900 text-[10px] uppercase tracking-wider text-zinc-400"
+          >
+            Read-only
+          </Badge>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="ml-1 text-zinc-500 hover:text-zinc-300">
+                <Info className="w-3 h-3" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[260px]">
+              <p className="text-xs">
+                A structured representation of your workflow. Edits must be made in the visual
+                builder above — this view is for reference and export.
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex rounded-md border border-zinc-800 bg-zinc-900 p-0.5">
+            {(["python", "r", "pseudocode", "json"] as CodeLanguage[]).map((l) => (
+              <button
+                key={l}
+                onClick={() => onLanguageChange(l)}
+                className={cn(
+                  "px-2 py-0.5 text-[11px] font-medium rounded transition-colors",
+                  language === l
+                    ? "bg-zinc-700 text-zinc-100"
+                    : "text-zinc-400 hover:text-zinc-200",
+                )}
+              >
+                {languageMeta(l).label}
+              </button>
+            ))}
+          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+                onClick={handleCopy}
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{copied ? "Copied!" : "Copy code"}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+                onClick={handleDownload}
+              >
+                <Download className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Download as {meta.filename}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+                onClick={onClose}
+              >
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Close code view</TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
+
+      {/* Code body with line numbers + step correlation */}
+      <div className="overflow-x-auto">
+        <table className="w-full font-mono text-xs leading-relaxed">
+          <tbody>
+            {lines.map((line, idx) => {
+              const isComment =
+                language !== "json" &&
+                (line.text.trim().startsWith("#") || line.text.trim().startsWith("//"));
+              const isHighlighted = !!line.stepUid && line.stepUid === highlightStepUid;
+              return (
+                <tr
+                  key={idx}
+                  onMouseEnter={() => line.stepUid && onHoverStep(line.stepUid)}
+                  onMouseLeave={() => line.stepUid && onHoverStep(null)}
+                  className={cn(
+                    "transition-colors",
+                    isHighlighted ? "bg-amber-500/10" : "hover:bg-zinc-900/60",
+                  )}
+                >
+                  <td
+                    className={cn(
+                      "select-none text-right pr-3 pl-4 py-0.5 text-zinc-600 border-r border-zinc-800/60 w-12",
+                      isHighlighted && "text-amber-400",
+                    )}
+                  >
+                    {idx + 1}
+                  </td>
+                  <td
+                    className={cn(
+                      "pl-4 pr-4 py-0.5 whitespace-pre",
+                      isComment ? "text-zinc-500" : "text-zinc-100",
+                    )}
+                  >
+                    {line.text || "\u00A0"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between gap-3 px-4 py-2 border-t border-zinc-800 bg-zinc-900/40 text-[11px] text-zinc-500">
+        <span>
+          {steps.length} step{steps.length === 1 ? "" : "s"} · {lines.length} line
+          {lines.length === 1 ? "" : "s"}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Eye className="w-3 h-3" />
+          Hover a line to highlight its workflow step
+        </span>
+      </div>
     </div>
   );
 }
