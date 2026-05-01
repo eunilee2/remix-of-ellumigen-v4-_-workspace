@@ -119,9 +119,10 @@ const EXAMPLE_TEMPLATES: ExampleTemplate[] = [
 
 interface WorkspaceViewProps {
   onStartExample?: (chatTitle: string, userMessage: string, assistantMessage: string) => void;
+  onOpenWorkspace?: (workspaceId: string) => void;
 }
 
-export function WorkspaceView({ onStartExample }: WorkspaceViewProps) {
+export function WorkspaceView({ onStartExample, onOpenWorkspace }: WorkspaceViewProps) {
   return (
     <div className="flex-1 overflow-y-auto bg-gradient-to-b from-sky-200/60 via-sky-100/30 to-background">
       <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-6 md:py-8">
