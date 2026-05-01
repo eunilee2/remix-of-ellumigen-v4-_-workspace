@@ -367,6 +367,7 @@ function NodeTree({
   mergeTargetIds,
   branchGapMap,
   advancedMode,
+  teamFilter,
 }: {
   node: MapNode;
   nodeMap: Record<string, MapNode>;
@@ -377,6 +378,7 @@ function NodeTree({
   mergeTargetIds?: string[];
   branchGapMap?: Record<string, number>;
   advancedMode?: boolean;
+  teamFilter?: string | null;
 }) {
   const children = node.children.map((id) => nodeMap[id]).filter(Boolean);
   const style = CATEGORY_STYLES[node.category];
@@ -386,12 +388,12 @@ function NodeTree({
   const mergedBranches = mainChild ? branchChildren.filter(isMergedBranch) : [];
   const branchGap = branchGapMap?.[node.id] ?? 0;
 
-  // Deterministic contributor initials per node so collaborators feel real
-  const contributorPool = ["AV", "MK", "SR", "JL", "EN"];
-  const contributorColors = ["#2563eb", "#9333ea", "#059669", "#dc2626", "#d97706"];
-  const hash = Array.from(node.id).reduce((a, c) => a + c.charCodeAt(0), 0);
-  const initials = contributorPool[hash % contributorPool.length];
-  const avatarColor = contributorColors[hash % contributorColors.length];
+  // Shared contributor lookup (matches the avatar shown next to the chat message).
+  const contributor = getContributorForId(node.id);
+  const { initials, color: avatarColor, name: contributorName, team: contributorTeam } = contributor;
+  const matchesTeamFilter = !teamFilter || contributorTeam === teamFilter;
+  const isHighlighted = !!teamFilter && matchesTeamFilter;
+  const isDimmed = !!teamFilter && !matchesTeamFilter;
 
   return (
     <div className="flex flex-col items-center">
@@ -404,7 +406,9 @@ function NodeTree({
             "w-[280px] p-4 rounded-xl border text-left transition-all hover:shadow-md",
             isActive
               ? "border-primary shadow-md ring-2 ring-primary/20"
-              : "border-border bg-background"
+              : "border-border bg-background",
+            isHighlighted && "ring-2 ring-amber-400 shadow-[0_0_0_4px_rgba(251,191,36,0.15)] border-amber-400",
+            isDimmed && "opacity-30 grayscale"
           )}
         >
           <div className="flex items-start justify-between gap-2">
@@ -421,12 +425,12 @@ function NodeTree({
             <span
               className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-semibold text-white shrink-0"
               style={{ backgroundColor: avatarColor }}
-              title={`Contributor ${initials}`}
+              title={`${contributorName} · ${contributorTeam}`}
             >
               {initials}
             </span>
             <span className="text-[10px] text-muted-foreground truncate">
-              {initials} · last edit {node.timestamp ? formatTimeAgo(node.timestamp instanceof Date ? node.timestamp : new Date(node.timestamp)) : "just now"}
+              {contributorName} · {contributorTeam}
             </span>
             <span
               className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500"
@@ -521,6 +525,7 @@ function NodeTree({
               branchGapMap={branchGapMap}
               mergeSourceId={mergeSourceId}
               advancedMode={advancedMode}
+              teamFilter={teamFilter}
             />
           )}
 
@@ -560,6 +565,7 @@ function NodeTree({
                   branchGapMap={branchGapMap}
                   mergeSourceId={isMerged && mainChild ? mergeAnchorId : undefined}
                   advancedMode={advancedMode}
+                  teamFilter={teamFilter}
                 />
               </div>
             );
