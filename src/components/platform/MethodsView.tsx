@@ -801,20 +801,17 @@ export function MethodsView() {
                 })}
               </div>
 
-              {/* Code view (advanced) */}
+              {/* Code view (read-only, optional reference layer) */}
               {advanced && (
-                <div className="mt-6 rounded-lg border border-border bg-zinc-950 text-zinc-100 overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
-                    <div className="flex items-center gap-2">
-                      <Code2 className="w-3.5 h-3.5 text-zinc-400" />
-                      <span className="text-xs font-mono text-zinc-300">workflow.py</span>
-                    </div>
-                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Read-only preview</span>
-                  </div>
-                  <pre className="p-4 text-xs font-mono leading-relaxed overflow-x-auto">
-                    {generatePseudocode(steps, datasetLookup)}
-                  </pre>
-                </div>
+                <CodeView
+                  steps={steps}
+                  datasetLookup={datasetLookup}
+                  language={codeLang}
+                  onLanguageChange={setCodeLang}
+                  highlightStepUid={highlightStepUid}
+                  onHoverStep={setHighlightStepUid}
+                  onClose={() => setAdvanced(false)}
+                />
               )}
             </div>
           </section>
