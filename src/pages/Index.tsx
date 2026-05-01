@@ -4,6 +4,7 @@ import { AppSidebar, type SidebarView } from "@/components/platform/AppSidebar";
 import { TopBar } from "@/components/platform/TopBar";
 import { ChatView, type MiniPanelType } from "@/components/platform/ChatView";
 import { WorkspaceView } from "@/components/platform/WorkspaceView";
+import { WorkspaceOverviewView } from "@/components/platform/WorkspaceOverviewView";
 import { HistoryView } from "@/components/platform/HistoryView";
 import { UseCasesView } from "@/components/platform/UseCasesView";
 import { ArtifactsView } from "@/components/platform/ArtifactsView";
@@ -11,8 +12,10 @@ import { MethodsView } from "@/components/platform/MethodsView";
 import { ConversationMap, type MapNode } from "@/components/platform/ConversationMap";
 import { PanelHeader } from "@/components/platform/ModeTabs";
 import { CombineInsightsDialog } from "@/components/platform/CombineInsightsDialog";
+import { RelatedThreadsPanel } from "@/components/platform/chat/RelatedThreadsPanel";
 import { useChatStore } from "@/stores/chatStore";
 import { buildBranchTreeFromMessages, branchTreeToMapNodes } from "@/lib/branchTreeBuilder";
+import { getWorkspaceForChat } from "@/lib/workspaces";
 import type { InterfaceMode, TaskStep, ThoughtEntry, DataTableConfig } from "@/types/chat";
 
 // ── Demo data ─────────────────────────────────────────────
@@ -119,6 +122,7 @@ export default function Index() {
   const store = useChatStore();
   const [isLoading, setIsLoading] = useState(false);
   const [activeView, setActiveView] = useState<SidebarView>("workspace");
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [showContextHelp, setShowContextHelp] = useState(false);
   const [miniPanel, setMiniPanel] = useState<MiniPanelType>(null);
   const [showConversationMap, setShowConversationMap] = useState(false);
@@ -460,6 +464,14 @@ export default function Index() {
           <TopBar
             chatTitle={store.activeChat?.title}
             chatSubtitle="Dataset name"
+            workspaceName={getWorkspaceForChat(store.chats, store.activeChatId)?.name}
+            onOpenWorkspace={() => {
+              const ws = getWorkspaceForChat(store.chats, store.activeChatId);
+              if (ws) {
+                setActiveWorkspaceId(ws.id);
+                setActiveView("workspace-overview");
+              }
+            }}
             isLoading={isLoading}
             lastMessageTime={(() => {
               const msgs = store.activeChat?.messages;
@@ -497,7 +509,21 @@ export default function Index() {
             isOnBranch={!!store.activeBranchId}
           />
         ) : activeView === "workspace" ? (
-          <WorkspaceView onStartExample={handleStartExample} />
+          <WorkspaceView
+            onStartExample={handleStartExample}
+            onOpenWorkspace={(wsId) => {
+              setActiveWorkspaceId(wsId);
+              setActiveView("workspace-overview");
+            }}
+          />
+        ) : activeView === "workspace-overview" && activeWorkspaceId ? (
+          <WorkspaceOverviewView
+            chats={store.chats}
+            workspaceId={activeWorkspaceId}
+            onSelectThread={(id) => handleSelectChat(id)}
+            onNewThread={handleNewChat}
+            onBack={() => setActiveView("workspace")}
+          />
         ) : activeView === "history" ? (
           <HistoryView chats={store.chats} onSelectChat={handleSelectChat} />
         ) : activeView === "usecases" ? (
@@ -507,27 +533,38 @@ export default function Index() {
         ) : activeView === "methods" ? (
           <MethodsView />
         ) : (
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <ChatView
-              chat={viewChat}
-              onSendMessage={handleSendMessage}
-              onBranch={handleBranch}
-              onBookmark={handleBookmark}
-              onToggleBookmarkCollection={(messageId, colId) => {
-                if (store.activeChatId) store.toggleBookmarkCollection(store.activeChatId, messageId, colId);
+          <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+              <ChatView
+                chat={viewChat}
+                onSendMessage={handleSendMessage}
+                onBranch={handleBranch}
+                onBookmark={handleBookmark}
+                onToggleBookmarkCollection={(messageId, colId) => {
+                  if (store.activeChatId) store.toggleBookmarkCollection(store.activeChatId, messageId, colId);
+                }}
+                onCreateBookmarkCollection={store.createBookmarkCollection}
+                getCollectionIdsForMessage={store.getCollectionIdsForMessage}
+                bookmarkCollections={store.bookmarkCollections}
+                onApprovePlan={handleApprovePlan}
+                onRejectPlan={handleRejectPlan}
+                isLoading={isLoading}
+                showContextHelp={showContextHelp}
+                onToggleContextHelp={setShowContextHelp}
+                miniPanel={miniPanel}
+                onToggleMiniPanel={toggleMiniPanel}
+                isNewChat={!store.activeBranchId}
+                branchContext={branchContext}
+              />
+            </div>
+            <RelatedThreadsPanel
+              chats={store.chats}
+              activeChatId={store.activeChatId}
+              onSelectThread={handleSelectChat}
+              onOpenWorkspace={(wsId) => {
+                setActiveWorkspaceId(wsId);
+                setActiveView("workspace-overview");
               }}
-              onCreateBookmarkCollection={store.createBookmarkCollection}
-              getCollectionIdsForMessage={store.getCollectionIdsForMessage}
-              bookmarkCollections={store.bookmarkCollections}
-              onApprovePlan={handleApprovePlan}
-              onRejectPlan={handleRejectPlan}
-              isLoading={isLoading}
-              showContextHelp={showContextHelp}
-              onToggleContextHelp={setShowContextHelp}
-              miniPanel={miniPanel}
-              onToggleMiniPanel={toggleMiniPanel}
-              isNewChat={!store.activeBranchId}
-              branchContext={branchContext}
             />
           </div>
         )}

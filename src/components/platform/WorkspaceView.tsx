@@ -12,36 +12,20 @@ interface Project {
 
 const DEMO_PROJECTS: Project[] = [
   {
-    id: "p1",
-    title: "Project Name",
-    dataset: "@Dataset-Name",
-    collaborators: 3,
+    id: "ws-cancer",
+    title: "Cancer Study — TCGA Cohort A",
+    dataset: "@TCGA-BRCA · @TCGA-LUAD",
+    collaborators: 4,
     status: { label: "Currently Running", textColor: "text-orange-700", bgColor: "bg-orange-100" },
     stats: { chats: 3, notebooks: 1, canvas: 4 },
   },
   {
-    id: "p2",
-    title: "Project Name",
-    dataset: "@Dataset-Name",
-    collaborators: 3,
+    id: "ws-enrichment",
+    title: "Pathway Enrichment Atlas",
+    dataset: "@Reactome · @KEGG",
+    collaborators: 2,
     updatedAt: "20 min ago",
-    stats: { chats: 3, notebooks: 1, canvas: 4 },
-  },
-  {
-    id: "p3",
-    title: "Project Name",
-    dataset: "@Dataset-Name",
-    collaborators: 3,
-    status: { label: "Recent Updates", textColor: "text-emerald-700", bgColor: "bg-emerald-100" },
-    stats: { chats: 1, notebooks: 0, canvas: 4 },
-  },
-  {
-    id: "p4",
-    title: "Project Name",
-    dataset: "@Dataset-Name",
-    collaborators: 3,
-    status: { label: "Currently Running", textColor: "text-orange-700", bgColor: "bg-orange-100" },
-    stats: { chats: 3, notebooks: 1, canvas: 4 },
+    stats: { chats: 2, notebooks: 1, canvas: 2 },
   },
 ];
 
@@ -119,16 +103,20 @@ const EXAMPLE_TEMPLATES: ExampleTemplate[] = [
 
 interface WorkspaceViewProps {
   onStartExample?: (chatTitle: string, userMessage: string, assistantMessage: string) => void;
+  onOpenWorkspace?: (workspaceId: string) => void;
 }
 
-export function WorkspaceView({ onStartExample }: WorkspaceViewProps) {
+export function WorkspaceView({ onStartExample, onOpenWorkspace }: WorkspaceViewProps) {
   return (
     <div className="flex-1 overflow-y-auto bg-gradient-to-b from-sky-200/60 via-sky-100/30 to-background">
       <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-6 md:py-8">
         <div className="mb-4 xl:max-w-[calc(100%-19rem)]">
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-            Overview
+            Your workspaces
           </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            A workspace is your project hub — it organizes the threads, datasets, and methods for one research question.
+          </p>
         </div>
 
         <div className="flex items-start gap-4">
@@ -136,14 +124,19 @@ export function WorkspaceView({ onStartExample }: WorkspaceViewProps) {
             <div className="bg-background rounded-2xl border border-border p-6 md:p-8">
               {/* Your Workspaces */}
               <section className="mb-10">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-1">
                   <h2 className="text-lg font-semibold text-foreground">Your Workspaces</h2>
-                  <span className="w-7 h-7 rounded-full border border-border flex items-center justify-center text-xs text-muted-foreground">2</span>
+                  <span className="w-7 h-7 rounded-full border border-border flex items-center justify-center text-xs text-muted-foreground">{DEMO_PROJECTS.length}</span>
                 </div>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Open a workspace to see all its analysis threads, datasets and methods in one place.
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {DEMO_PROJECTS.map((project) => (
-                    <div
+                    <button
+                      type="button"
                       key={project.id}
+                      onClick={() => onOpenWorkspace?.(project.id)}
                       className="text-left p-5 rounded-xl border border-border bg-background hover:bg-secondary/30 transition-colors cursor-pointer"
                     >
                       <div className="flex items-center justify-between mb-3">
@@ -171,7 +164,7 @@ export function WorkspaceView({ onStartExample }: WorkspaceViewProps) {
                       <div className="flex items-center gap-0 border-t border-border pt-3">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-1">
                           <MessageSquare className="w-3.5 h-3.5" />
-                          {project.stats.chats} Chats
+                          {project.stats.chats} Threads
                         </div>
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-1 border-l border-border pl-3">
                           <BookOpen className="w-3.5 h-3.5" />
@@ -182,17 +175,20 @@ export function WorkspaceView({ onStartExample }: WorkspaceViewProps) {
                           {project.stats.canvas} Canvas
                         </div>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </section>
 
-              {/* Your Chats */}
+              {/* Recent threads */}
               <section>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-foreground">Your Chats</h2>
-                  <span className="w-7 h-7 rounded-full border border-border flex items-center justify-center text-xs text-muted-foreground">1</span>
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="text-lg font-semibold text-foreground">Recent threads</h2>
+                  <span className="w-7 h-7 rounded-full border border-border flex items-center justify-center text-xs text-muted-foreground">{DEMO_CHATS.length}</span>
                 </div>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Each thread is an exploration inside a workspace. Branch, switch, or save as a method without leaving context.
+                </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {DEMO_CHATS.map((chat) => (
                     <div
