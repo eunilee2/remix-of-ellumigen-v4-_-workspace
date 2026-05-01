@@ -767,6 +767,8 @@ export function MethodsView() {
                         index={i}
                         datasetLookup={datasetLookup}
                         draggingDatasetId={draggingDatasetId}
+                        highlighted={highlightStepUid === step.uid}
+                        onHover={(h) => setHighlightStepUid(h ? step.uid : null)}
                         onParamChange={(k, v) => updateParam(step.uid, k, v)}
                         onRemove={() => removeStep(step.uid)}
                         onDuplicate={() => duplicateStep(step.uid)}
