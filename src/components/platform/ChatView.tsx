@@ -21,6 +21,28 @@ import { FreeformView } from "./FreeformView";
 import { NotebookView } from "./NotebookView";
 import ellumigenLogo from "@/assets/EllumigenLogo.png";
 import { getContributorForId } from "@/lib/contributors";
+import { ContextStrip } from "./chat/ContextStrip";
+import { StartingCanvas } from "./chat/StartingCanvas";
+import { AnalysisStepBlock } from "./chat/AnalysisStepBlock";
+
+// Derive persistent context (datasets + active method) from the chat messages.
+function deriveChatContext(messages: ChatMessage[] | undefined) {
+  const datasets = new Set<string>();
+  let method: string | null = null;
+  if (!messages) return { datasets: [] as string[], method };
+  for (const m of messages) {
+    (m.metadata?.contextUsed ?? []).forEach((c) => {
+      if (c.startsWith("/")) method = c.slice(1);
+      else if (/^[A-Z]/.test(c)) datasets.add(c);
+      else method = c;
+    });
+    const dsMatches = m.content.match(/@[\w-]+/g);
+    dsMatches?.forEach((d) => datasets.add(d.slice(1)));
+    const mtMatches = m.content.match(/\/[\w-]+/g);
+    if (mtMatches && mtMatches.length > 0) method = mtMatches[mtMatches.length - 1].slice(1);
+  }
+  return { datasets: Array.from(datasets), method };
+}
 
 export type MiniPanelType = "canvas" | "code" | null;
 
