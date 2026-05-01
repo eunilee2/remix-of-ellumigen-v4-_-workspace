@@ -1,8 +1,10 @@
-import { Share2, Map, Sparkles, ArrowLeft, Settings } from "lucide-react";
+import { Share2, Map, Sparkles, ArrowLeft, Settings, FolderOpen, ChevronRight } from "lucide-react";
 
 interface TopBarProps {
   chatTitle?: string;
   chatSubtitle?: string;
+  workspaceName?: string;
+  onOpenWorkspace?: () => void;
   isLoading?: boolean;
   lastMessageTime?: string;
   branchContext?: {
