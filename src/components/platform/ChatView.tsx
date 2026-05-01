@@ -20,6 +20,7 @@ import { BookmarkPopover } from "./chat/BookmarkPopover";
 import { FreeformView } from "./FreeformView";
 import { NotebookView } from "./NotebookView";
 import ellumigenLogo from "@/assets/EllumigenLogo.png";
+import { getContributorForId } from "@/lib/contributors";
 
 export type MiniPanelType = "canvas" | "code" | null;
 
@@ -396,6 +397,7 @@ function MessageBubble({
 }) {
   const isUser = message.role === "user";
   const metaType = message.metadata?.type;
+  const contributor = isUser ? getContributorForId(message.id) : null;
   const assistantActions = (
     <div className="flex items-center gap-1 mt-3 -ml-1">
       <button className="p-1 rounded hover:bg-secondary transition-colors">
@@ -558,8 +560,12 @@ function MessageBubble({
       </div>
 
       {isUser && (
-        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-xs font-bold shrink-0 mt-1">
-          U
+        <div
+          className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0 mt-1"
+          style={{ backgroundColor: contributor?.color ?? "hsl(var(--muted))" }}
+          title={contributor ? `${contributor.name} · ${contributor.team}` : undefined}
+        >
+          {contributor?.initials ?? "U"}
         </div>
       )}
     </motion.div>
