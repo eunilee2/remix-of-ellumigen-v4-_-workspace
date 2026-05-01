@@ -13,10 +13,13 @@ import {
   MoreHorizontal,
   Beaker,
   FlaskConical,
+  FolderOpen,
+  GitBranch,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
 import type { Chat, Folder, BookmarkedMessage, BookmarkCollection } from "@/types/chat";
+import { buildWorkspaces } from "@/lib/workspaces";
 import { ChatBranchTree, type BranchTreeNode } from "./ChatBranchTree";
 import { UserProfile } from "./UserProfile";
 import ellumigenLogo from "@/assets/EllumigenLogo.png";
