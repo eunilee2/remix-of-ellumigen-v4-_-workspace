@@ -422,8 +422,9 @@ function MiniPanelButtons({
   );
 }
 
-function MessageBubble({
+function DocumentEntry({
   message,
+  stepNumber,
   onBranch,
   onBookmark,
   onToggleBookmarkCollection,
@@ -434,6 +435,7 @@ function MessageBubble({
   onRejectPlan,
 }: {
   message: ChatMessage;
+  stepNumber?: number;
   onBranch: () => void;
   onBookmark: () => void;
   onToggleBookmarkCollection?: (collectionId: string) => void;
@@ -446,15 +448,16 @@ function MessageBubble({
   const isUser = message.role === "user";
   const metaType = message.metadata?.type;
   const contributor = isUser ? getContributorForId(message.id) : null;
-  const assistantActions = (
-    <div className="flex items-center gap-1 mt-3 -ml-1">
-      <button className="p-1 rounded hover:bg-secondary transition-colors">
+
+  const inlineActions = (
+    <div className="flex items-center gap-1 mt-2">
+      <button className="p-1 rounded hover:bg-secondary transition-colors" title="Copy">
         <Copy className="w-3.5 h-3.5 text-muted-foreground" />
       </button>
-      <button className="p-1 rounded hover:bg-secondary transition-colors">
+      <button className="p-1 rounded hover:bg-secondary transition-colors" title="Helpful">
         <ThumbsUp className="w-3.5 h-3.5 text-muted-foreground" />
       </button>
-      <button className="p-1 rounded hover:bg-secondary transition-colors">
+      <button className="p-1 rounded hover:bg-secondary transition-colors" title="Not helpful">
         <ThumbsDown className="w-3.5 h-3.5 text-muted-foreground" />
       </button>
       <BookmarkPopover
@@ -467,155 +470,198 @@ function MessageBubble({
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
-              onClick={onBranch}
-              className="p-1 rounded hover:bg-secondary transition-colors"
-            >
+            <button onClick={onBranch} className="p-1 rounded hover:bg-secondary transition-colors">
               <GitBranch className="w-3.5 h-3.5 text-muted-foreground" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="top">
-            <p>Explore another direction</p>
-          </TooltipContent>
+          <TooltipContent side="top"><p>Explore another direction</p></TooltipContent>
         </Tooltip>
       </TooltipProvider>
     </div>
   );
 
+  // ===== USER PROMPT — rendered as a "researcher note", single column, no bubble =====
+  if (isUser) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+        className="border-l-2 border-foreground/30 pl-4 py-1"
+      >
+        <div className="flex items-center gap-2 mb-1">
+          <div
+            className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold"
+            style={{ backgroundColor: contributor?.color ?? "hsl(var(--muted))" }}
+            title={contributor ? `${contributor.name} · ${contributor.team}` : undefined}
+          >
+            {contributor?.initials ?? "U"}
+          </div>
+          <span className="text-xs font-medium text-foreground">
+            {contributor?.name ?? "You"}
+          </span>
+          <span className="text-[10px] text-muted-foreground">
+            asked · {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+        <p
+          className="text-sm text-foreground leading-relaxed"
+          dangerouslySetInnerHTML={{
+            __html: message.content
+              .replace(/\/([\w-]+)/g, '<span class="text-violet-600 font-medium">/$1</span>')
+              .replace(/@([\w-]+)/g, '<span class="text-sky-600 font-medium">@$1</span>'),
+          }}
+        />
+      </motion.div>
+    );
+  }
+
+  // ===== ANALYSIS RESPONSES — wrapped in AnalysisStepBlock (numbered, sectioned) =====
+  const isAnalysis =
+    metaType === "plan" ||
+    metaType === "executing" ||
+    metaType === "data-table" ||
+    metaType === "visualizations";
+
+  if (isAnalysis && stepNumber) {
+    const datasets = (message.metadata?.contextUsed ?? []).filter((c) => /^[A-Z]/.test(c));
+    const methodTag = (message.metadata?.contextUsed ?? []).find((c) => !/^[A-Z]/.test(c));
+    const isRunning =
+      metaType === "executing" &&
+      message.metadata?.executionSteps?.some((s) => s.status === "running");
+
+    let title = "Analysis step";
+    let resultNode: React.ReactNode = null;
+    let interpretationNode: React.ReactNode = null;
+
+    if (metaType === "plan" && message.metadata?.plan) {
+      title = message.metadata.plan.title ?? "Proposed plan";
+      resultNode = (
+        <ProposedPlan
+          plan={message.metadata.plan}
+          onApprove={() => onApprovePlan?.()}
+          onReject={() => onRejectPlan?.()}
+          onEdit={() => {}}
+        />
+      );
+    } else if (metaType === "executing") {
+      title = "Executing analysis";
+      resultNode = (
+        <>
+          {message.metadata?.executionSteps && (
+            <TaskExecution
+              steps={message.metadata.executionSteps}
+              completedCount={message.metadata.executionSteps.filter(s => s.status === "complete").length}
+              totalCount={message.metadata.executionSteps.length}
+            />
+          )}
+          {message.metadata?.thoughtProcess && message.metadata.thoughtProcess.length > 0 && (
+            <ThoughtProcess
+              entries={message.metadata.thoughtProcess}
+              isLive={isRunning}
+            />
+          )}
+        </>
+      );
+    } else if (metaType === "data-table" && message.metadata?.dataTable) {
+      title = "Tabular result";
+      resultNode = (
+        <DataTable
+          columns={message.metadata.dataTable.columns}
+          data={message.metadata.dataTable.data}
+        />
+      );
+      if (message.content) {
+        interpretationNode = (
+          <div className="prose prose-sm max-w-none text-foreground prose-p:text-foreground">
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          </div>
+        );
+      }
+    } else if (metaType === "visualizations") {
+      title = "Visualization & findings";
+      resultNode = (
+        <div className="space-y-3">
+          {message.metadata?.dataTable && (
+            <DraggableVisualization type="datatable" title="Data Table">
+              <DataTable
+                columns={message.metadata.dataTable.columns}
+                data={message.metadata.dataTable.data}
+              />
+            </DraggableVisualization>
+          )}
+          {message.metadata?.showVolcano && (
+            <DraggableVisualization type="volcano" title="Volcano Plot">
+              <VolcanoPlot />
+            </DraggableVisualization>
+          )}
+          {message.metadata?.showHeatmap && (
+            <DraggableVisualization type="heatmap" title="Expression Heatmap">
+              <HeatmapChart />
+            </DraggableVisualization>
+          )}
+        </div>
+      );
+      if (message.content) {
+        interpretationNode = (
+          <div className="prose prose-sm max-w-none text-foreground prose-p:text-foreground">
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          </div>
+        );
+      }
+    }
+
+    return (
+      <AnalysisStepBlock
+        stepNumber={stepNumber}
+        title={title}
+        status={isRunning ? "running" : "complete"}
+        datasets={datasets}
+        method={methodTag ?? null}
+        result={resultNode}
+        interpretation={interpretationNode}
+        onRefine={onBookmark}
+        onBranch={onBranch}
+        onSaveAsMethod={onBookmark}
+      />
+    );
+  }
+
+  // ===== Plain assistant prose — document paragraph (no bubble, no avatar) =====
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-      className={`flex ${isUser ? "justify-end" : "justify-start"} gap-3`}
+      transition={{ duration: 0.2 }}
+      className="py-1"
     >
-      {!isUser && (
-        <img src={ellumigenLogo} alt="Ellumigen" className="w-8 h-8 rounded-full shrink-0 mt-1 object-cover" />
+      {message.metadata?.contextUsed && message.metadata.contextUsed.length > 0 && (
+        <ContextTags tags={message.metadata.contextUsed} variant="assistant" />
       )}
-
-      <div className={`max-w-[85%]`}>
-        {isUser ? (
-          <div>
-            <div className="bg-background text-foreground rounded-2xl rounded-br-md px-4 py-3 border border-border">
-              <p className="text-sm" dangerouslySetInnerHTML={{
-                __html: message.content.replace(
-                  /\/([\w-]+)/g,
-                  '<span class="text-violet-600 font-medium">/$1</span>'
-                ),
-              }} />
-            </div>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </p>
-          </div>
-        ) : metaType === "plan" && message.metadata?.plan ? (
-          <div className="w-full">
-            <ProposedPlan
-              plan={message.metadata.plan}
-              onApprove={() => onApprovePlan?.()}
-              onReject={() => onRejectPlan?.()}
-              onEdit={() => {}}
-            />
-            {assistantActions}
-          </div>
-        ) : metaType === "executing" ? (
-          <div className="w-full">
-            {message.metadata?.thoughtProcess && message.metadata.thoughtProcess.length > 0 && (
-              <ThoughtProcess
-                entries={message.metadata.thoughtProcess}
-                isLive={message.metadata.executionSteps?.some(s => s.status === "running")}
-              />
-            )}
-            {message.metadata?.executionSteps && (
-              <TaskExecution
-                steps={message.metadata.executionSteps}
-                completedCount={message.metadata.executionSteps.filter(s => s.status === "complete").length}
-                totalCount={message.metadata.executionSteps.length}
-              />
-            )}
-            {assistantActions}
-          </div>
-        ) : metaType === "data-table" && message.metadata?.dataTable ? (
-          <div className="w-full">
-            {message.content && (
-              <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground mb-4">
-                <ReactMarkdown>{message.content}</ReactMarkdown>
-              </div>
-            )}
-            <DataTable
-              columns={message.metadata.dataTable.columns}
-              data={message.metadata.dataTable.data}
-            />
-            {assistantActions}
-          </div>
-        ) : metaType === "visualizations" ? (
-          <div className="w-full space-y-4">
-            {message.content && (
-              <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground">
-                <ReactMarkdown>{message.content}</ReactMarkdown>
-              </div>
-            )}
-            {message.metadata?.dataTable && (
-              <DraggableVisualization type="datatable" title="Data Table">
-                <DataTable
-                  columns={message.metadata.dataTable.columns}
-                  data={message.metadata.dataTable.data}
-                />
-              </DraggableVisualization>
-            )}
-            {message.metadata?.showVolcano && (
-              <DraggableVisualization type="volcano" title="Volcano Plot">
-                <VolcanoPlot />
-              </DraggableVisualization>
-            )}
-            {message.metadata?.showHeatmap && (
-              <DraggableVisualization type="heatmap" title="Expression Heatmap">
-                <HeatmapChart />
-              </DraggableVisualization>
-            )}
-            {assistantActions}
-          </div>
-        ) : (
-          <div>
-            {message.metadata?.contextUsed && message.metadata.contextUsed.length > 0 && (
-              <ContextTags tags={message.metadata.contextUsed} variant="assistant" />
-            )}
-            <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-code:text-foreground">
-              <ReactMarkdown
-                components={{
-                  p: ({ children }) => {
-                    const processNode = (node: React.ReactNode): React.ReactNode => {
-                      if (typeof node === 'string') {
-                        const parts = node.split(/(\/[\w-]+)/g);
-                        if (parts.length === 1) return node;
-                        return <>{parts.map((part, i) =>
-                          /^\/[\w-]+$/.test(part)
-                            ? <span key={i} className="text-violet-500 font-medium">{part}</span>
-                            : part
-                        )}</>;
-                      }
-                      return node;
-                    };
-                    const processed = Array.isArray(children) ? children.map(processNode) : processNode(children);
-                    return <p>{processed}</p>;
-                  },
-                }}
-              >{message.content}</ReactMarkdown>
-            </div>
-            {assistantActions}
-          </div>
-        )}
+      <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-code:text-foreground">
+        <ReactMarkdown
+          components={{
+            p: ({ children }) => {
+              const processNode = (node: React.ReactNode): React.ReactNode => {
+                if (typeof node === 'string') {
+                  const parts = node.split(/(\/[\w-]+)/g);
+                  if (parts.length === 1) return node;
+                  return <>{parts.map((part, i) =>
+                    /^\/[\w-]+$/.test(part)
+                      ? <span key={i} className="text-violet-500 font-medium">{part}</span>
+                      : part
+                  )}</>;
+                }
+                return node;
+              };
+              const processed = Array.isArray(children) ? children.map(processNode) : processNode(children);
+              return <p>{processed}</p>;
+            },
+          }}
+        >{message.content}</ReactMarkdown>
       </div>
-
-      {isUser && (
-        <div
-          className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0 mt-1"
-          style={{ backgroundColor: contributor?.color ?? "hsl(var(--muted))" }}
-          title={contributor ? `${contributor.name} · ${contributor.team}` : undefined}
-        >
-          {contributor?.initials ?? "U"}
-        </div>
-      )}
+      {inlineActions}
     </motion.div>
   );
 }
+
