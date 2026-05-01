@@ -1,4 +1,4 @@
-import { Share2, User, Map, Merge, ArrowLeft, Settings, Clock } from "lucide-react";
+import { Share2, Map, Sparkles, ArrowLeft, Settings } from "lucide-react";
 
 interface TopBarProps {
   chatTitle?: string;
@@ -13,7 +13,7 @@ interface TopBarProps {
   };
   onOpenConversationMap?: () => void;
   onCloseConversationMap?: () => void;
-  onBringToMain?: () => void;
+  onBringToMain?: () => void; // keep prop name for backwards-compat; triggers Combine flow
   onReturnToMain?: () => void;
   showConversationMap?: boolean;
 }
@@ -37,17 +37,27 @@ export function TopBar({
       {/* Branch context bar */}
       {isOnBranch && (
         <div className="flex items-center justify-between px-5 py-2.5 bg-muted/50 border-b border-border">
-          <span className="text-xs text-muted-foreground truncate">
-            {branchContext?.isMerged ? "Merged" : "Exploring"}: {branchContext?.branchTitle} – {branchContext?.isMerged ? "into" : "from"} {branchContext?.parentTitle}
+          <span className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
+            <span
+              className="inline-block w-1.5 h-1.5 rounded-full"
+              style={{ backgroundColor: branchContext?.isMerged ? "#9333ea" : "#a78bfa" }}
+              aria-hidden
+            />
+            {branchContext?.isMerged ? (
+              <>Saved to <span className="font-medium text-foreground">{branchContext?.parentTitle}</span> · <span className="italic">{branchContext?.branchTitle}</span></>
+            ) : (
+              <>Exploring a variation: <span className="font-medium text-foreground">{branchContext?.branchTitle}</span> · branched from <span className="italic">{branchContext?.parentTitle}</span></>
+            )}
           </span>
           <div className="flex items-center gap-2 shrink-0">
             {!branchContext?.isMerged && (
               <button
                 onClick={onBringToMain}
                 className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                title="Combine the insights from this exploration into the main thread"
               >
-                <Merge className="w-3 h-3" />
-                Merge to Main
+                <Sparkles className="w-3 h-3" />
+                Combine insights
               </button>
             )}
             <button
@@ -55,7 +65,7 @@ export function TopBar({
               className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-border rounded-md hover:bg-secondary transition-colors"
             >
               <ArrowLeft className="w-3 h-3" />
-              Return to Main
+              Back to main thread
             </button>
           </div>
         </div>
