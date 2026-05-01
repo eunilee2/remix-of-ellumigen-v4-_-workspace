@@ -122,6 +122,7 @@ export default function Index() {
   const store = useChatStore();
   const [isLoading, setIsLoading] = useState(false);
   const [activeView, setActiveView] = useState<SidebarView>("workspace");
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [showContextHelp, setShowContextHelp] = useState(false);
   const [miniPanel, setMiniPanel] = useState<MiniPanelType>(null);
   const [showConversationMap, setShowConversationMap] = useState(false);
