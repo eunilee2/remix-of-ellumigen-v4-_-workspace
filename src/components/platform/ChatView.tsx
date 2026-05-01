@@ -19,7 +19,7 @@ import { DraggableVisualization } from "./chat/DraggableVisualization";
 import { BookmarkPopover } from "./chat/BookmarkPopover";
 import { FreeformView } from "./FreeformView";
 import { NotebookView } from "./NotebookView";
-import ellumigenLogo from "@/assets/EllumigenLogo.png";
+
 import { getContributorForId } from "@/lib/contributors";
 import { ContextStrip } from "./chat/ContextStrip";
 import { StartingCanvas } from "./chat/StartingCanvas";
