@@ -15,7 +15,7 @@ import { CombineInsightsDialog } from "@/components/platform/CombineInsightsDial
 import { RelatedThreadsPanel } from "@/components/platform/chat/RelatedThreadsPanel";
 import { useChatStore } from "@/stores/chatStore";
 import { buildBranchTreeFromMessages, branchTreeToMapNodes } from "@/lib/branchTreeBuilder";
-import { getWorkspaceForChat, getWorkspaceIdForChat } from "@/lib/workspaces";
+import { getWorkspaceForChat } from "@/lib/workspaces";
 import type { InterfaceMode, TaskStep, ThoughtEntry, DataTableConfig } from "@/types/chat";
 
 // ── Demo data ─────────────────────────────────────────────
