@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type { Chat, Folder, BookmarkedMessage, BookmarkCollection } from "@/types/chat";
 import { ChatBranchTree, type BranchTreeNode } from "./ChatBranchTree";
+import { UserProfile } from "./UserProfile";
 import ellumigenLogo from "@/assets/EllumigenLogo.png";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -89,7 +90,7 @@ export function AppSidebar({
 
       {/* Collapsed: icon-only nav */}
       {collapsed ? (
-        <nav className="flex flex-col items-center gap-1 py-3">
+        <nav className="flex-1 flex flex-col items-center gap-1 py-3">
           <SidebarIconButton
             icon={PanelLeftOpen}
             label="Expand sidebar"
@@ -237,6 +238,11 @@ export function AppSidebar({
           </div>
         </>
       )}
+
+      {/* User profile pinned to bottom */}
+      <div className={cn("mt-auto border-t border-border", collapsed ? "p-1.5" : "p-2")}>
+        <UserProfile collapsed={collapsed} />
+      </div>
     </aside>
   );
 }
