@@ -123,6 +123,7 @@ export default function Index() {
   const [miniPanel, setMiniPanel] = useState<MiniPanelType>(null);
   const [showConversationMap, setShowConversationMap] = useState(false);
   const [activeMapNodeId, setActiveMapNodeId] = useState<string>("mn4");
+  const [showCombineDialog, setShowCombineDialog] = useState(false);
 
   // Auto-open canvas panel when dragging a visualization
   useEffect(() => {
