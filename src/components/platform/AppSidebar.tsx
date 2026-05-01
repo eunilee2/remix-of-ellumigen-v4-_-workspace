@@ -175,28 +175,63 @@ export function AppSidebar({
             </div>
           )}
 
-          {/* Chats section */}
+          {/* Workspaces — threads nested under their workspace */}
           <div className="flex-1 overflow-y-auto mt-2">
-            <Collapsible defaultOpen className="px-3">
-              <CollapsibleTrigger className="section-label flex items-center gap-1 w-full">
-                <MessageSquare className="w-3 h-3" />
-                Chats
-                <ChevronDown className="w-3 h-3 ml-auto transition-transform duration-200 [[data-state=closed]>&]:rotate-[-90deg]" />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-0.5 mt-1">
-                {chats.map((chat) => (
-                  <button
-                    key={chat.id}
-                    onClick={() => onSelectChat(chat.id)}
-                    className={`sidebar-item w-full text-left truncate ${
-                      activeView === "chat" && activeChatId === chat.id ? "sidebar-item-active" : ""
-                    }`}
-                  >
-                    <span className="truncate">{chat.title}</span>
-                  </button>
-                ))}
-              </CollapsibleContent>
-            </Collapsible>
+            <div className="px-3">
+              <div className="section-label flex items-center gap-1 w-full">
+                <FolderOpen className="w-3 h-3" />
+                Workspaces
+                <span className="ml-auto text-[10px] text-muted-foreground">
+                  Threads grouped by project
+                </span>
+              </div>
+              <div className="space-y-2 mt-1">
+                {buildWorkspaces(chats).map((ws) => {
+                  const wsThreads = chats.filter((c) => ws.threadIds.includes(c.id));
+                  if (wsThreads.length === 0) return null;
+                  return (
+                    <Collapsible key={ws.id} defaultOpen>
+                      <CollapsibleTrigger className="w-full group flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-secondary/50 transition-colors">
+                        <ChevronDown className="w-3 h-3 shrink-0 text-muted-foreground transition-transform duration-200 [[data-state=closed]>&]:rotate-[-90deg]" />
+                        <FolderOpen className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                        <span className="truncate text-xs font-semibold text-foreground flex-1 text-left">
+                          {ws.name}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          {wsThreads.length}
+                        </span>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="space-y-0.5 mt-0.5 ml-3 border-l border-border pl-2">
+                        {wsThreads.map((chat) => {
+                          const isBranched = !!chat.parentId;
+                          return (
+                            <button
+                              key={chat.id}
+                              onClick={() => onSelectChat(chat.id)}
+                              className={`sidebar-item w-full text-left truncate ${
+                                activeView === "chat" && activeChatId === chat.id
+                                  ? "sidebar-item-active"
+                                  : ""
+                              }`}
+                              title={isBranched ? "Branched thread" : "Thread"}
+                            >
+                              {isBranched ? (
+                                <GitBranch className="w-3 h-3 shrink-0 text-violet-500" />
+                              ) : (
+                                <MessageSquare className="w-3 h-3 shrink-0 text-muted-foreground" />
+                              )}
+                              <span className="truncate">{chat.title}</span>
+                            </button>
+                          );
+                        })}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  );
+                })}
+              </div>
+            </div>
+
+
 
             {/* Bookmarks */}
             <Collapsible defaultOpen className="px-3 mt-4">
