@@ -38,6 +38,23 @@ export function TopBar({
 
   return (
     <div className="flex flex-col border-b border-border bg-background">
+      {/* Workspace › Thread breadcrumb */}
+      {workspaceName && (
+        <div className="flex items-center gap-1 px-5 py-1.5 bg-secondary/40 border-b border-border text-xs">
+          <button
+            onClick={onOpenWorkspace}
+            className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <FolderOpen className="w-3 h-3" />
+            <span className="font-medium">Workspace:</span>
+            <span>{workspaceName}</span>
+          </button>
+          <ChevronRight className="w-3 h-3 text-muted-foreground" />
+          <span className="text-muted-foreground">Thread:</span>
+          <span className="font-medium text-foreground truncate">{chatTitle || "Untitled"}</span>
+        </div>
+      )}
+
       {/* Branch context bar */}
       {isOnBranch && (
         <div className="flex items-center justify-between px-5 py-2.5 bg-muted/50 border-b border-border">
