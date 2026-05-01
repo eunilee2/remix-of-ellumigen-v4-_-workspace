@@ -555,6 +555,7 @@ function NodeTree({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           onClick={() => onSelectNode?.(node.id)}
+          data-map-node={node.id}
           className={cn(
             "w-[280px] p-4 rounded-xl border text-left transition-all hover:shadow-md",
             isActive
