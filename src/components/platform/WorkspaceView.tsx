@@ -12,36 +12,20 @@ interface Project {
 
 const DEMO_PROJECTS: Project[] = [
   {
-    id: "p1",
-    title: "Project Name",
-    dataset: "@Dataset-Name",
-    collaborators: 3,
+    id: "ws-cancer",
+    title: "Cancer Study — TCGA Cohort A",
+    dataset: "@TCGA-BRCA · @TCGA-LUAD",
+    collaborators: 4,
     status: { label: "Currently Running", textColor: "text-orange-700", bgColor: "bg-orange-100" },
     stats: { chats: 3, notebooks: 1, canvas: 4 },
   },
   {
-    id: "p2",
-    title: "Project Name",
-    dataset: "@Dataset-Name",
-    collaborators: 3,
+    id: "ws-enrichment",
+    title: "Pathway Enrichment Atlas",
+    dataset: "@Reactome · @KEGG",
+    collaborators: 2,
     updatedAt: "20 min ago",
-    stats: { chats: 3, notebooks: 1, canvas: 4 },
-  },
-  {
-    id: "p3",
-    title: "Project Name",
-    dataset: "@Dataset-Name",
-    collaborators: 3,
-    status: { label: "Recent Updates", textColor: "text-emerald-700", bgColor: "bg-emerald-100" },
-    stats: { chats: 1, notebooks: 0, canvas: 4 },
-  },
-  {
-    id: "p4",
-    title: "Project Name",
-    dataset: "@Dataset-Name",
-    collaborators: 3,
-    status: { label: "Currently Running", textColor: "text-orange-700", bgColor: "bg-orange-100" },
-    stats: { chats: 3, notebooks: 1, canvas: 4 },
+    stats: { chats: 2, notebooks: 1, canvas: 2 },
   },
 ];
 
