@@ -29,3 +29,7 @@ export function getContributorForId(id: string): Contributor {
   }
   return CONTRIBUTORS[hash % CONTRIBUTORS.length];
 }
+
+/** The "you" persona used across the app — drives sidebar filtering and "my branch" UI. */
+export const CURRENT_USER: Contributor =
+  CONTRIBUTORS.find((c) => c.name === "Elena Novak") ?? CONTRIBUTORS[0];
