@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Plus } from "lucide-react";
+import { Plus, Info } from "lucide-react";
 import type { BranchNodeCategory } from "@/types/chat";
 import { cn } from "@/lib/utils";
 
@@ -170,6 +170,7 @@ export function ConversationMap({
   const [mergeConnectors, setMergeConnectors] = useState<MergeConnector[]>([]);
   const [branchGaps, setBranchGaps] = useState<Record<string, number>>({});
   const [overlaySize, setOverlaySize] = useState({ width: 0, height: 0 });
+  const [advancedMode, setAdvancedMode] = useState(false);
 
   useLayoutEffect(() => {
     const container = contentRef.current;
@@ -204,6 +205,25 @@ export function ConversationMap({
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-background">
+      {/* Friendly explainer + advanced toggle */}
+      <div className="flex items-center justify-between gap-4 px-6 py-3 border-b border-border bg-muted/30">
+        <div className="flex items-start gap-2 text-xs text-muted-foreground min-w-0">
+          <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <p className="truncate">
+            Each card is a checkpoint in your analysis. Branch off to try a variation, then{" "}
+            <span className="font-medium text-foreground">combine insights</span> back when you're ready.
+          </p>
+        </div>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground shrink-0 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            className="accent-primary"
+            checked={advancedMode}
+            onChange={(e) => setAdvancedMode(e.target.checked)}
+          />
+          Version-control view
+        </label>
+      </div>
 
       <div className="flex-1 overflow-auto px-6 py-4">
         <div
@@ -237,6 +257,7 @@ export function ConversationMap({
               onSelectNode={onSelectNode}
               onAddBranch={onAddBranch}
               branchGapMap={branchGaps}
+              advancedMode={advancedMode}
             />
           ))}
         </div>
@@ -254,6 +275,7 @@ function NodeTree({
   mergeSourceId,
   mergeTargetIds,
   branchGapMap,
+  advancedMode,
 }: {
   node: MapNode;
   nodeMap: Record<string, MapNode>;
@@ -263,6 +285,7 @@ function NodeTree({
   mergeSourceId?: string;
   mergeTargetIds?: string[];
   branchGapMap?: Record<string, number>;
+  advancedMode?: boolean;
 }) {
   const children = node.children.map((id) => nodeMap[id]).filter(Boolean);
   const style = CATEGORY_STYLES[node.category];
@@ -271,6 +294,13 @@ function NodeTree({
   const branchChildren = children.filter((child) => child.isBranch);
   const mergedBranches = mainChild ? branchChildren.filter(isMergedBranch) : [];
   const branchGap = branchGapMap?.[node.id] ?? 0;
+
+  // Deterministic contributor initials per node so collaborators feel real
+  const contributorPool = ["AV", "MK", "SR", "JL", "EN"];
+  const contributorColors = ["#2563eb", "#9333ea", "#059669", "#dc2626", "#d97706"];
+  const hash = Array.from(node.id).reduce((a, c) => a + c.charCodeAt(0), 0);
+  const initials = contributorPool[hash % contributorPool.length];
+  const avatarColor = contributorColors[hash % contributorColors.length];
 
   return (
     <div className="flex flex-col items-center">
@@ -296,6 +326,23 @@ function NodeTree({
           </div>
           <h3 className="text-sm font-semibold text-foreground mt-2">{node.label}</h3>
           <p className="text-xs text-muted-foreground mt-1">{node.description}</p>
+          <div className="flex items-center gap-2 mt-3 pt-2 border-t border-border/60">
+            <span
+              className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-semibold text-white shrink-0"
+              style={{ backgroundColor: avatarColor }}
+              title={`Contributor ${initials}`}
+            >
+              {initials}
+            </span>
+            <span className="text-[10px] text-muted-foreground truncate">
+              {initials} · last edit {node.timestamp ? formatTimeAgo(node.timestamp instanceof Date ? node.timestamp : new Date(node.timestamp)) : "just now"}
+            </span>
+            <span
+              className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500"
+              title="Recently active"
+              aria-hidden
+            />
+          </div>
         </motion.button>
         {(mergeTargetIds || []).map((mergeTargetId) => (
           <span
@@ -345,7 +392,7 @@ function NodeTree({
               <div className="w-px h-4 bg-border" />
               <div className="my-1">
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-foreground text-background font-medium">
-                  Main
+                  {advancedMode ? "main" : "Main path"}
                 </span>
               </div>
               <div className="w-px h-4 bg-border" />
@@ -382,6 +429,7 @@ function NodeTree({
               mergeTargetIds={mergedBranches.map((branchNode) => getMergeAnchorId(branchNode))}
               branchGapMap={branchGapMap}
               mergeSourceId={mergeSourceId}
+              advancedMode={advancedMode}
             />
           )}
 
@@ -389,6 +437,10 @@ function NodeTree({
             const curveEndY = 24 + 6 + BRANCH_CURVE_RADIUS;
             const isMerged = isMergedBranch(branch);
             const mergeAnchorId = getMergeAnchorId(branch);
+            const rawLabel = branch.branchLabel || `Path ${index + 1}`;
+            const friendlyLabel = isMerged
+              ? (advancedMode ? "merged" : "combined")
+              : rawLabel.replace(/^Branch\b/i, advancedMode ? "Branch" : "Path");
 
             return (
               <div
@@ -404,7 +456,7 @@ function NodeTree({
                 <div className="w-px h-4 bg-border" />
                 <div className="mb-1">
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-                    {branch.branchLabel || `Branch ${index + 1}`}
+                    {friendlyLabel}
                   </span>
                 </div>
                 <div className="w-px h-4 bg-border" />
@@ -416,6 +468,7 @@ function NodeTree({
                   onAddBranch={onAddBranch}
                   branchGapMap={branchGapMap}
                   mergeSourceId={isMerged && mainChild ? mergeAnchorId : undefined}
+                  advancedMode={advancedMode}
                 />
               </div>
             );
