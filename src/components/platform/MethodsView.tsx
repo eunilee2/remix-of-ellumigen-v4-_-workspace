@@ -22,6 +22,10 @@ import {
   ArrowRight,
   Info,
   FileCode2,
+  PanelLeftOpen,
+  PanelLeftClose,
+  PanelRightOpen,
+  PanelRightClose,
   type LucideIcon,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -311,6 +315,8 @@ export function MethodsView() {
   const [draggingDatasetId, setDraggingDatasetId] = useState<string | null>(null);
   const [draggingStepUid, setDraggingStepUid] = useState<string | null>(null);
   const [dropOverIndex, setDropOverIndex] = useState<number | null>(null);
+  const [leftOpen, setLeftOpen] = useState(false);
+  const [rightOpen, setRightOpen] = useState(false);
 
   const datasetLookup = useMemo(
     () => Object.fromEntries(SAMPLE_DATASETS.map((d) => [d.id, d])) as Record<string, DatasetCard>,
@@ -438,14 +444,44 @@ export function MethodsView() {
           </div>
         </header>
 
-        {/* 3-column layout */}
-        <div className="flex-1 overflow-hidden grid grid-cols-[280px_1fr_320px] gap-0">
+        {/* 3-column layout — side panels collapse to thin rails by default */}
+        <div
+          className="flex-1 overflow-hidden grid gap-0 transition-[grid-template-columns] duration-200"
+          style={{
+            gridTemplateColumns: `${leftOpen ? "280px" : "44px"} 1fr ${rightOpen ? "320px" : "44px"}`,
+          }}
+        >
           {/* ── Left: step library ── */}
+          {!leftOpen ? (
+            <aside className="border-r border-border bg-card/30 flex flex-col items-center py-3 gap-2 overflow-hidden">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setLeftOpen(true)}
+                  >
+                    <PanelLeftOpen className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right"><p className="text-xs">Open step library</p></TooltipContent>
+              </Tooltip>
+              <div className="[writing-mode:vertical-rl] rotate-180 text-[11px] font-medium uppercase tracking-wider text-muted-foreground mt-2">
+                Step library
+              </div>
+            </aside>
+          ) : (
           <aside className="border-r border-border bg-card/30 flex flex-col overflow-hidden">
             <div className="p-4 border-b border-border">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Step library
-              </h2>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Step library
+                </h2>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setLeftOpen(false)}>
+                  <PanelLeftClose className="w-3.5 h-3.5" />
+                </Button>
+              </div>
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -498,6 +534,7 @@ export function MethodsView() {
               )}
             </div>
           </aside>
+          )}
 
           {/* ── Center: workflow canvas ── */}
           <section className="overflow-y-auto bg-background">
@@ -642,12 +679,38 @@ export function MethodsView() {
           </section>
 
           {/* ── Right: datasets ── */}
+          {!rightOpen ? (
+            <aside className="border-l border-border bg-card/30 flex flex-col items-center py-3 gap-2 overflow-hidden">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setRightOpen(true)}
+                  >
+                    <PanelRightOpen className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left"><p className="text-xs">Open datasets</p></TooltipContent>
+              </Tooltip>
+              <Database className="w-3.5 h-3.5 text-muted-foreground" />
+              <div className="[writing-mode:vertical-rl] text-[11px] font-medium uppercase tracking-wider text-muted-foreground mt-1">
+                Datasets
+              </div>
+            </aside>
+          ) : (
           <aside className="border-l border-border bg-card/30 flex flex-col overflow-hidden">
             <div className="p-4 border-b border-border">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1.5">
-                <Database className="w-3.5 h-3.5" />
-                Datasets
-              </h2>
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Database className="w-3.5 h-3.5" />
+                  Datasets
+                </h2>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setRightOpen(false)}>
+                  <PanelRightClose className="w-3.5 h-3.5" />
+                </Button>
+              </div>
               <p className="text-[11px] text-muted-foreground">
                 Drag a dataset onto any step to use it as input.
               </p>
@@ -689,6 +752,7 @@ export function MethodsView() {
               </Button>
             </div>
           </aside>
+          )}
         </div>
       </div>
     </TooltipProvider>
