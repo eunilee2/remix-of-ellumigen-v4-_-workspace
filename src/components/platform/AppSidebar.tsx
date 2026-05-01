@@ -26,7 +26,7 @@ import ellumigenLogo from "@/assets/EllumigenLogo.png";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-export type SidebarView = "workspace" | "chat" | "history" | "usecases" | "artifacts" | "methods";
+export type SidebarView = "workspace" | "workspace-overview" | "chat" | "history" | "usecases" | "artifacts" | "methods";
 
 interface AppSidebarProps {
   chats: Chat[];
