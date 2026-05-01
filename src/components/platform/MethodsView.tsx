@@ -909,6 +909,8 @@ interface StepBlockProps {
   index: number;
   datasetLookup: Record<string, DatasetCard>;
   draggingDatasetId: string | null;
+  highlighted?: boolean;
+  onHover?: (hovered: boolean) => void;
   onParamChange: (key: string, value: number | string | boolean) => void;
   onRemove: () => void;
   onDuplicate: () => void;
@@ -924,6 +926,8 @@ function StepBlock({
   index,
   datasetLookup,
   draggingDatasetId,
+  highlighted,
+  onHover,
   onParamChange,
   onRemove,
   onDuplicate,
@@ -950,6 +954,8 @@ function StepBlock({
         onDragStartStep();
       }}
       onDragEnd={onDragEndStep}
+      onMouseEnter={() => onHover?.(true)}
+      onMouseLeave={() => onHover?.(false)}
       onDragOver={(e) => {
         if (draggingDatasetId) {
           e.preventDefault();
@@ -965,7 +971,8 @@ function StepBlock({
       }}
       className={cn(
         "rounded-xl border bg-card shadow-sm overflow-hidden transition-all",
-        dropHover ? "border-primary ring-2 ring-primary/30" : "border-border"
+        dropHover ? "border-primary ring-2 ring-primary/30" : "border-border",
+        highlighted && "ring-2 ring-amber-500/50 border-amber-500/50"
       )}
     >
       {/* Header */}
