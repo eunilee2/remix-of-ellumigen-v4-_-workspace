@@ -169,7 +169,7 @@ export function useChatStore() {
 
       const branch: ChatBranch = {
         id: crypto.randomUUID(),
-        label: `Branch ${source.branches.length + 1}`,
+        label: `Path ${source.branches.length + 1}`,
         parentMessageId: parentMessage.id,
         messages: [],
         createdAt: new Date(),
